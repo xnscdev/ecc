@@ -41,6 +41,8 @@ static gcc_jit_field *field_value;
 static gcc_jit_field *field_type;
 static gcc_jit_field *field_next;
 static gcc_jit_function *func_malloc;
+static gcc_jit_function *func_push;
+static gcc_jit_function *func_pop;
 static gcc_jit_lvalue *var_bowls;
 static gcc_jit_lvalue *var_dishes;
 
@@ -75,14 +77,14 @@ gen_func_push (gcc_jit_context *ctx, gcc_jit_location *loc)
   gcc_jit_param *param_type =
     gcc_jit_context_new_param (ctx, loc, type_int, "type");
   gcc_jit_param *params[3] = {param_id, param_value, param_type};
-  gcc_jit_function *func_push =
+  gcc_jit_function *func =
     gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_INTERNAL,
 				  type_void, "push", 3, params, 0);
   gcc_jit_lvalue *container =
-    gcc_jit_function_new_local (func_push, loc, type_container_ptr,
+    gcc_jit_function_new_local (func, loc, type_container_ptr,
 				"container");
   gcc_jit_block *block_entry =
-    gcc_jit_function_new_block (func_push, "entry");
+    gcc_jit_function_new_block (func, "entry");
   gcc_jit_lvalue *container_value =
     gcc_jit_rvalue_dereference_field (gcc_jit_lvalue_as_rvalue (container),
 				      loc, field_value);
@@ -112,7 +114,7 @@ gen_func_push (gcc_jit_context *ctx, gcc_jit_location *loc)
   gcc_jit_block_add_assignment (block_entry, loc, target_container,
 				gcc_jit_lvalue_as_rvalue (container));
   gcc_jit_block_end_with_void_return (block_entry, loc);
-  return func_push;
+  return func;
 }
 
 static gcc_jit_function *
@@ -120,17 +122,17 @@ gen_func_pop (gcc_jit_context *ctx, gcc_jit_location *loc)
 {
   gcc_jit_param *param_id =
     gcc_jit_context_new_param (ctx, loc, type_int, "id");
-  gcc_jit_function *func_pop =
+  gcc_jit_function *func =
     gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_INTERNAL,
 				  type_container_ptr, "pop", 1, &param_id, 0);
   gcc_jit_lvalue *container =
-    gcc_jit_function_new_local (func_pop, loc, type_container_ptr,
+    gcc_jit_function_new_local (func, loc, type_container_ptr,
 				"container");
   gcc_jit_block *block_entry =
-    gcc_jit_function_new_block (func_pop, "entry");
-  gcc_jit_block *block_null = gcc_jit_function_new_block (func_pop, "null");
+    gcc_jit_function_new_block (func, "entry");
+  gcc_jit_block *block_null = gcc_jit_function_new_block (func, "null");
   gcc_jit_block *block_shift =
-    gcc_jit_function_new_block (func_pop, "shift");
+    gcc_jit_function_new_block (func, "shift");
   gcc_jit_lvalue *target_container =
     gcc_jit_context_new_array_access (ctx, loc,
 				      gcc_jit_lvalue_as_rvalue (var_bowls),
@@ -155,7 +157,7 @@ gen_func_pop (gcc_jit_context *ctx, gcc_jit_location *loc)
 				gcc_jit_lvalue_as_rvalue (target_next));
   gcc_jit_block_end_with_return (block_shift, loc,
 				 gcc_jit_lvalue_as_rvalue (container));
-  return func_pop;
+  return func;
 }
 
 static void
@@ -166,8 +168,6 @@ gen_prog_start (gcc_jit_context *ctx)
   gcc_jit_field *container_fields[3];
   gcc_jit_type *type_container = gcc_jit_struct_as_type (struct_container);
   gcc_jit_type *type_container_ptr_arr;
-  gcc_jit_function *func_push;
-  gcc_jit_function *func_pop;
   
   gcc_jit_param *param_size =
     gcc_jit_context_new_param (ctx, NULL, type_size_t, "size");
@@ -198,13 +198,54 @@ gen_prog_start (gcc_jit_context *ctx)
 }
 
 static void
+add_inst_put (gcc_jit_context *ctx, gcc_jit_block *block, struct recipe *rcp)
+{
+  gcc_jit_rvalue *call_args[3] = {
+    gcc_jit_context_new_rvalue_from_int (ctx, type_int,
+					 rcp->method->bowl - 1),
+    NULL,
+    NULL
+  };
+  gcc_jit_rvalue *push_call;
+  struct ingredient *temp;
+  for (temp = rcp->ings; temp != NULL; temp = temp->next)
+    {
+      if (strcmp (temp->name, rcp->method->ing) == 0)
+	{
+	  call_args[1] =
+	    gcc_jit_context_new_rvalue_from_int (ctx, type_int, temp->initval);
+	  call_args[2] =
+	    gcc_jit_context_new_rvalue_from_int (ctx, type_int,
+						 temp->type == MEASURE_LIQUID);
+	}
+    }
+  if (call_args[1] == NULL || call_args[2] == NULL)
+    error ("undefined ingredient: %s\n", rcp->method->ing);
+
+  push_call = gcc_jit_context_new_call (ctx, NULL, func_push, 3, call_args);
+  gcc_jit_block_add_eval (block, NULL, push_call);
+}
+
+static void
 gen_func_main (gcc_jit_context *ctx)
 {
   gcc_jit_function *func_main =
     gcc_jit_context_new_function (ctx, NULL, GCC_JIT_FUNCTION_EXPORTED,
 				  type_int, "main", 0, NULL, 0);
+  gcc_jit_lvalue *var_ptr =
+    gcc_jit_function_new_local (func_main, NULL, type_container_ptr, "ptr");
   gcc_jit_block *block_entry =
     gcc_jit_function_new_block (func_main, "entry");
+
+  for (; rcp->method != NULL; rcp->method = rcp->method->next)
+    {
+      switch (rcp->method->type)
+	{
+	case INST_PUT:
+	  add_inst_put (ctx, block_entry, rcp);
+	  break;
+	}
+    }
   gcc_jit_block_end_with_return (block_entry, NULL,
 				 gcc_jit_context_zero (ctx, type_int));
 }
