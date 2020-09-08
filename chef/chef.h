@@ -89,4 +89,12 @@ struct recipe
   struct recipe *next;
 };
 
+extern int optimization;
+extern int debuginfo;
+extern int last_phase;
+extern struct recipe *rcp;
+extern char *srcfile;
+
+void compile (char *output);
+
 #endif

@@ -2008,7 +2008,7 @@ yyreduce:
     {
   case 2: /* program: recipe  */
 #line 80 "chef-parser.y"
-                       { main_recipe = (yyvsp[0].recipe); }
+                       { rcp = (yyvsp[0].recipe); }
 #line 2013 "chef-parser.c"
     break;
 

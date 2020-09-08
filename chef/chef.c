@@ -37,7 +37,7 @@ int optimization;
 int debuginfo;
 int last_phase;
 struct strlist *sources;
-struct recipe *main_recipe;
+struct recipe *rcp;
 
 static struct
 {
@@ -143,5 +143,6 @@ main (int argc, char **argv)
 
   yywrap ();
   yyparse ();
+  compile ("a.out");
   return 0;
 }

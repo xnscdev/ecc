@@ -77,7 +77,7 @@ extern struct recipe *main_recipe;
 
 %%
 
-program:	recipe { main_recipe = $1; }
+program:	recipe { rcp = $1; }
 	;
 
 recipe:		identifier '.' blank_line comments blank_line ingredient_list

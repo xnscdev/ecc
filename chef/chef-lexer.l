@@ -118,6 +118,7 @@ yywrap (void)
 	     strerror (errno));
       exit (1);
     }
+  srcfile = sources->value;
   sources = sources->next;
   return 0;
 }
