@@ -67,7 +67,7 @@
 
 
 /* First part of user prologue.  */
-#line 1 "chef-parser.y"
+#line 19 "chef-parser.y"
 
 
 #ifdef HAVE_CONFIG_H
@@ -253,7 +253,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 25 "chef-parser.y"
+#line 43 "chef-parser.y"
 
     char *string;
     int number;
@@ -783,24 +783,24 @@ static const yytype_int8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,    62,    62,    65,    77,    78,    81,    82,    83,    84,
-      87,    95,   104,   113,   120,   129,   136,   145,   152,   161,
-     168,   177,   183,   192,   201,   209,   218,   227,   233,   241,
-     249,   260,   269,   276,   286,   293,   302,   308,   316,   317,
-     318,   319,   320,   321,   322,   323,   324,   325,   326,   327,
-     328,   329,   330,   331,   332,   333,   334,   335,   338,   339,
-     350,   351,   354,   356,   359,   361,   362,   363,   366,   373,
-     380,   389,   399,   400,   412,   415,   416,   417,   420,   421,
-     424,   425,   426,   427,   430,   431,   434,   435,   438,   440,
-     443,   444,   447,   448,   449,   450,   451,   452,   453,   454,
-     455,   456,   457,   458,   459,   460,   461,   462,   463,   464,
-     465,   466,   467,   468,   469,   470,   471,   472,   475,   476,
-     477,   478,   479,   480,   481,   482,   483,   484,   485,   486,
-     487,   488,   489,   490,   491,   492,   493,   494,   495,   496,
-     497,   498,   501,   501,   501,   501,   501,   501,   501,   501,
-     501,   501,   502,   502,   502,   502,   502,   502,   502,   502,
-     502,   502,   503,   503,   503,   503,   503,   503,   503,   503,
-     503,   503
+       0,    80,    80,    83,    95,    96,    99,   100,   101,   102,
+     105,   113,   122,   131,   138,   147,   154,   163,   170,   179,
+     186,   195,   201,   210,   219,   227,   236,   245,   251,   259,
+     267,   278,   287,   294,   304,   311,   320,   326,   334,   335,
+     336,   337,   338,   339,   340,   341,   342,   343,   344,   345,
+     346,   347,   348,   349,   350,   351,   352,   353,   356,   357,
+     368,   369,   372,   374,   377,   379,   380,   381,   384,   391,
+     398,   407,   417,   418,   430,   433,   434,   435,   438,   439,
+     442,   443,   444,   445,   448,   449,   452,   453,   456,   458,
+     461,   462,   465,   466,   467,   468,   469,   470,   471,   472,
+     473,   474,   475,   476,   477,   478,   479,   480,   481,   482,
+     483,   484,   485,   486,   487,   488,   489,   490,   493,   494,
+     495,   496,   497,   498,   499,   500,   501,   502,   503,   504,
+     505,   506,   507,   508,   509,   510,   511,   512,   513,   514,
+     515,   516,   519,   519,   519,   519,   519,   519,   519,   519,
+     519,   519,   520,   520,   520,   520,   520,   520,   520,   520,
+     520,   520,   521,   521,   521,   521,   521,   521,   521,   521,
+     521,   521
 };
 #endif
 
@@ -2007,13 +2007,13 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* program: recipe  */
-#line 62 "chef-parser.y"
+#line 80 "chef-parser.y"
                        { main_recipe = (yyvsp[0].recipe); }
 #line 2013 "chef-parser.c"
     break;
 
   case 3: /* recipe: identifier '.' blank_line comments blank_line ingredient_list blank_line extra_attributes method serves_statement spaces  */
-#line 67 "chef-parser.y"
+#line 85 "chef-parser.y"
                 {
 		  (yyval.recipe) = xmalloc (sizeof (struct recipe));
 		  (yyval.recipe)->name = (yyvsp[-10].string);
@@ -2025,43 +2025,43 @@ yyreduce:
     break;
 
   case 4: /* serves_statement: %empty  */
-#line 77 "chef-parser.y"
+#line 95 "chef-parser.y"
                             { (yyval.number) = 0; }
 #line 2031 "chef-parser.c"
     break;
 
   case 5: /* serves_statement: blank_line SERVES NUMBER '.'  */
-#line 78 "chef-parser.y"
+#line 96 "chef-parser.y"
                                              { (yyval.number) = (yyvsp[-1].number); }
 #line 2037 "chef-parser.c"
     break;
 
   case 6: /* bowl_specifier: %empty  */
-#line 81 "chef-parser.y"
+#line 99 "chef-parser.y"
                             { (yyval.number) = 1; }
 #line 2043 "chef-parser.c"
     break;
 
   case 7: /* bowl_specifier: THE  */
-#line 82 "chef-parser.y"
+#line 100 "chef-parser.y"
                     { (yyval.number) = 1; }
 #line 2049 "chef-parser.c"
     break;
 
   case 8: /* bowl_specifier: ORDER  */
-#line 83 "chef-parser.y"
+#line 101 "chef-parser.y"
                       { (yyval.number) = (yyvsp[0].number); }
 #line 2055 "chef-parser.c"
     break;
 
   case 9: /* bowl_specifier: THE ORDER  */
-#line 84 "chef-parser.y"
+#line 102 "chef-parser.y"
                           { (yyval.number) = (yyvsp[0].number); }
 #line 2061 "chef-parser.c"
     break;
 
   case 10: /* inst_take: TAKE identifier FROM REFRIGERATOR '.'  */
-#line 88 "chef-parser.y"
+#line 106 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_TAKE;
@@ -2071,7 +2071,7 @@ yyreduce:
     break;
 
   case 11: /* inst_put: PUT identifier INTO bowl_specifier MIXING BOWL '.'  */
-#line 96 "chef-parser.y"
+#line 114 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_PUT;
@@ -2082,7 +2082,7 @@ yyreduce:
     break;
 
   case 12: /* inst_fold: FOLD identifier INTO bowl_specifier MIXING BOWL '.'  */
-#line 105 "chef-parser.y"
+#line 123 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_FOLD;
@@ -2093,7 +2093,7 @@ yyreduce:
     break;
 
   case 13: /* inst_add: ADD identifier TO bowl_specifier MIXING BOWL '.'  */
-#line 114 "chef-parser.y"
+#line 132 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_ADD;
@@ -2104,7 +2104,7 @@ yyreduce:
     break;
 
   case 14: /* inst_add: ADD identifier '.'  */
-#line 121 "chef-parser.y"
+#line 139 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_ADD;
@@ -2115,7 +2115,7 @@ yyreduce:
     break;
 
   case 15: /* inst_remove: REMOVE identifier FROM bowl_specifier MIXING BOWL '.'  */
-#line 130 "chef-parser.y"
+#line 148 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_REMOVE;
@@ -2126,7 +2126,7 @@ yyreduce:
     break;
 
   case 16: /* inst_remove: REMOVE identifier '.'  */
-#line 137 "chef-parser.y"
+#line 155 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_REMOVE;
@@ -2137,7 +2137,7 @@ yyreduce:
     break;
 
   case 17: /* inst_combine: COMBINE identifier INTO bowl_specifier MIXING BOWL '.'  */
-#line 146 "chef-parser.y"
+#line 164 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_COMBINE;
@@ -2148,7 +2148,7 @@ yyreduce:
     break;
 
   case 18: /* inst_combine: COMBINE identifier '.'  */
-#line 153 "chef-parser.y"
+#line 171 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_COMBINE;
@@ -2159,7 +2159,7 @@ yyreduce:
     break;
 
   case 19: /* inst_divide: DIVIDE identifier INTO bowl_specifier MIXING BOWL '.'  */
-#line 162 "chef-parser.y"
+#line 180 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_DIVIDE;
@@ -2170,7 +2170,7 @@ yyreduce:
     break;
 
   case 20: /* inst_divide: DIVIDE identifier '.'  */
-#line 169 "chef-parser.y"
+#line 187 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_DIVIDE;
@@ -2181,7 +2181,7 @@ yyreduce:
     break;
 
   case 21: /* inst_add_dry: ADD DRY INGREDIENTS TO bowl_specifier MIXING BOWL '.'  */
-#line 178 "chef-parser.y"
+#line 196 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_ADD_DRY;
@@ -2191,7 +2191,7 @@ yyreduce:
     break;
 
   case 22: /* inst_add_dry: ADD DRY INGREDIENTS '.'  */
-#line 184 "chef-parser.y"
+#line 202 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_ADD_DRY;
@@ -2201,7 +2201,7 @@ yyreduce:
     break;
 
   case 23: /* inst_liquefy_bowl: LIQUEFY CONTENTS OF bowl_specifier MIXING BOWL '.'  */
-#line 193 "chef-parser.y"
+#line 211 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_LIQUEFY_BOWL;
@@ -2211,7 +2211,7 @@ yyreduce:
     break;
 
   case 24: /* inst_liquefy_ing: LIQUEFY identifier '.'  */
-#line 202 "chef-parser.y"
+#line 220 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_LIQUEFY_ING;
@@ -2221,7 +2221,7 @@ yyreduce:
     break;
 
   case 25: /* inst_stir_bowl: STIR bowl_specifier MIXING BOWL FOR NUMBER MINUTES '.'  */
-#line 210 "chef-parser.y"
+#line 228 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_STIR_BOWL;
@@ -2232,7 +2232,7 @@ yyreduce:
     break;
 
   case 26: /* inst_stir_ing: STIR identifier INTO bowl_specifier MIXING BOWL '.'  */
-#line 219 "chef-parser.y"
+#line 237 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_STIR_ING;
@@ -2243,7 +2243,7 @@ yyreduce:
     break;
 
   case 27: /* inst_mix: MIX bowl_specifier MIXING BOWL WELL '.'  */
-#line 228 "chef-parser.y"
+#line 246 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_MIX;
@@ -2253,7 +2253,7 @@ yyreduce:
     break;
 
   case 28: /* inst_mix: MIX WELL '.'  */
-#line 234 "chef-parser.y"
+#line 252 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_MIX;
@@ -2263,7 +2263,7 @@ yyreduce:
     break;
 
   case 29: /* inst_clean: CLEAN bowl_specifier MIXING BOWL '.'  */
-#line 242 "chef-parser.y"
+#line 260 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_CLEAN;
@@ -2273,7 +2273,7 @@ yyreduce:
     break;
 
   case 30: /* inst_pour: POUR CONTENTS OF bowl_specifier MIXING BOWL INTO bowl_specifier BAKING DISH '.'  */
-#line 251 "chef-parser.y"
+#line 269 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_POUR;
@@ -2284,7 +2284,7 @@ yyreduce:
     break;
 
   case 31: /* inst_loop_start: word THE identifier '.'  */
-#line 261 "chef-parser.y"
+#line 279 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_LOOP_START;
@@ -2295,7 +2295,7 @@ yyreduce:
     break;
 
   case 32: /* inst_loop_end: word THE identifier UNTIL word '.'  */
-#line 270 "chef-parser.y"
+#line 288 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_LOOP_END;
@@ -2306,7 +2306,7 @@ yyreduce:
     break;
 
   case 33: /* inst_loop_end: word UNTIL word '.'  */
-#line 277 "chef-parser.y"
+#line 295 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_LOOP_END;
@@ -2317,7 +2317,7 @@ yyreduce:
     break;
 
   case 34: /* inst_loop_break: SET ASIDE '.'  */
-#line 287 "chef-parser.y"
+#line 305 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_LOOP_BREAK;
@@ -2326,7 +2326,7 @@ yyreduce:
     break;
 
   case 35: /* inst_serve: SERVE WITH identifier '.'  */
-#line 294 "chef-parser.y"
+#line 312 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_SERVE;
@@ -2336,7 +2336,7 @@ yyreduce:
     break;
 
   case 36: /* inst_refrigerate: REFRIGERATE FOR NUMBER HOURS '.'  */
-#line 303 "chef-parser.y"
+#line 321 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_REFRIGERATE;
@@ -2346,7 +2346,7 @@ yyreduce:
     break;
 
   case 37: /* inst_refrigerate: REFRIGERATE '.'  */
-#line 309 "chef-parser.y"
+#line 327 "chef-parser.y"
                 {
 		  (yyval.inst) = xmalloc (sizeof (struct instruction));
 		  (yyval.inst)->type = INST_REFRIGERATE;
@@ -2356,13 +2356,13 @@ yyreduce:
     break;
 
   case 58: /* method: HEADER_METHOD '\n' instruction  */
-#line 338 "chef-parser.y"
+#line 356 "chef-parser.y"
                                                { (yyval.inst) = (yyvsp[0].inst); }
 #line 2362 "chef-parser.c"
     break;
 
   case 59: /* method: method optional_newline instruction  */
-#line 340 "chef-parser.y"
+#line 358 "chef-parser.y"
                 {
 		  struct instruction *temp = (yyvsp[-2].inst);
 		  while (temp->next != NULL)
@@ -2375,7 +2375,7 @@ yyreduce:
     break;
 
   case 68: /* ingredient: NUMBER measurement identifier  */
-#line 367 "chef-parser.y"
+#line 385 "chef-parser.y"
                 {
 		  (yyval.ings) = xmalloc (sizeof (struct ingredient));
 		  (yyval.ings)->name = (yyvsp[0].string);
@@ -2386,7 +2386,7 @@ yyreduce:
     break;
 
   case 69: /* ingredient: NUMBER refined_measurement identifier  */
-#line 374 "chef-parser.y"
+#line 392 "chef-parser.y"
                 {
 		  (yyval.ings) = xmalloc (sizeof (struct ingredient));
 		  (yyval.ings)->name = (yyvsp[0].string);
@@ -2397,7 +2397,7 @@ yyreduce:
     break;
 
   case 70: /* ingredient: NUMBER measurement refined_measurement identifier  */
-#line 381 "chef-parser.y"
+#line 399 "chef-parser.y"
                 {
 		  (yyval.ings) = xmalloc (sizeof (struct ingredient));
 		  (yyval.ings)->name = (yyvsp[0].string);
@@ -2410,7 +2410,7 @@ yyreduce:
     break;
 
   case 71: /* ingredient: NUMBER identifier  */
-#line 390 "chef-parser.y"
+#line 408 "chef-parser.y"
                 {
 		  (yyval.ings) = xmalloc (sizeof (struct ingredient));
 		  (yyval.ings)->name = (yyvsp[0].string);
@@ -2421,13 +2421,13 @@ yyreduce:
     break;
 
   case 72: /* ingredient_list: HEADER_INGS '\n' ingredient  */
-#line 399 "chef-parser.y"
+#line 417 "chef-parser.y"
                                             { (yyval.ings) = (yyvsp[0].ings); }
 #line 2427 "chef-parser.c"
     break;
 
   case 73: /* ingredient_list: ingredient_list '\n' ingredient  */
-#line 401 "chef-parser.y"
+#line 419 "chef-parser.y"
                 {
 		  struct ingredient *temp = (yyvsp[-2].ings);
 		  while (temp->next != NULL)
@@ -2440,31 +2440,31 @@ yyreduce:
     break;
 
   case 74: /* refined_measurement: REFINED_MEASURE  */
-#line 412 "chef-parser.y"
+#line 430 "chef-parser.y"
                                 { (yyval.number) = MEASURE_DRY; }
 #line 2446 "chef-parser.c"
     break;
 
   case 75: /* measurement: DRY_MEASURE  */
-#line 415 "chef-parser.y"
+#line 433 "chef-parser.y"
                             { (yyval.number) = MEASURE_DRY; }
 #line 2452 "chef-parser.c"
     break;
 
   case 76: /* measurement: LIQUID_MEASURE  */
-#line 416 "chef-parser.y"
+#line 434 "chef-parser.y"
                                { (yyval.number) = MEASURE_LIQUID; }
 #line 2458 "chef-parser.c"
     break;
 
   case 77: /* measurement: UNDEF_MEASURE  */
-#line 417 "chef-parser.y"
+#line 435 "chef-parser.y"
                               { (yyval.number) = MEASURE_UNDEF; }
 #line 2464 "chef-parser.c"
     break;
 
   case 85: /* identifier: identifier word  */
-#line 431 "chef-parser.y"
+#line 449 "chef-parser.y"
                                 { strmerge ((yyvsp[-1].string), " "); strmerge ((yyvsp[-1].string), (yyvsp[0].string)); }
 #line 2470 "chef-parser.c"
     break;
@@ -2695,7 +2695,7 @@ yyreturn:
   return yyresult;
 }
 
-#line 506 "chef-parser.y"
+#line 524 "chef-parser.y"
 
 
 		void

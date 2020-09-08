@@ -172,7 +172,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 25 "chef-parser.y"
+#line 43 "chef-parser.y"
 
     char *string;
     int number;

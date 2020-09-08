@@ -609,7 +609,24 @@ int yy_flex_debug = 0;
 #define YY_RESTORE_YY_MORE_OFFSET
 char *yytext;
 #line 1 "chef-lexer.l"
-#line 2 "chef-lexer.l"
+/*************************************************************************
+ * This file is part of ECC.                                             *
+ * Copyright (C) 2020 XNSC                                               *
+ *                                                                       *
+ * This program is free software: you can redistribute it and/or modify  *
+ * it under the terms of the GNU General Public License as published by  *
+ * the Free Software Foundation, either version 3 of the License, or     *
+ * (at your option) any later version.                                   *
+ *                                                                       *
+ * This program is distributed in the hope that it will be useful,       *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the          *
+ * GNU General Public License for more details.                          *
+ *                                                                       *
+ * You should have received a copy of the GNU General Public License     *
+ * along with this program. If not, see <https://www.gnu.org/licenses/>. *
+ *************************************************************************/
+#line 20 "chef-lexer.l"
   
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -631,7 +648,7 @@ extern struct strlist *sources;
 
 int yywrap (void);
  
-#line 635 "chef-lexer.c"
+#line 652 "chef-lexer.c"
 
 #define INITIAL 0
 
@@ -813,10 +830,10 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 25 "chef-lexer.l"
+#line 43 "chef-lexer.l"
 
 
-#line 820 "chef-lexer.c"
+#line 837 "chef-lexer.c"
 
 	if ( !(yy_init) )
 		{
@@ -901,301 +918,301 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 27 "chef-lexer.l"
+#line 45 "chef-lexer.l"
 ;
 	YY_BREAK
 case 2:
 /* rule 2 can match eol */
 YY_RULE_SETUP
-#line 28 "chef-lexer.l"
+#line 46 "chef-lexer.l"
 yylineno++; return '\n';
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 29 "chef-lexer.l"
+#line 47 "chef-lexer.l"
 save_string (DRY_MEASURE);
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 30 "chef-lexer.l"
+#line 48 "chef-lexer.l"
 save_string (LIQUID_MEASURE);
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 31 "chef-lexer.l"
+#line 49 "chef-lexer.l"
 save_string (UNDEF_MEASURE);
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 32 "chef-lexer.l"
+#line 50 "chef-lexer.l"
 save_string (UNDEF_MEASURE);
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 33 "chef-lexer.l"
+#line 51 "chef-lexer.l"
 save_string (UNDEF_MEASURE);
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 34 "chef-lexer.l"
+#line 52 "chef-lexer.l"
 save_string (REFINED_MEASURE);
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 35 "chef-lexer.l"
+#line 53 "chef-lexer.l"
 save_string (HEADER_INGS);
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 36 "chef-lexer.l"
+#line 54 "chef-lexer.l"
 save_string (HEADER_METHOD);
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 37 "chef-lexer.l"
+#line 55 "chef-lexer.l"
 save_string (COOKING);
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 38 "chef-lexer.l"
+#line 56 "chef-lexer.l"
 save_string (TIME);
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 39 "chef-lexer.l"
+#line 57 "chef-lexer.l"
 save_string (HOURS);
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 40 "chef-lexer.l"
+#line 58 "chef-lexer.l"
 save_string (MINUTES);
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 41 "chef-lexer.l"
+#line 59 "chef-lexer.l"
 save_string (PREHEAT);
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 42 "chef-lexer.l"
+#line 60 "chef-lexer.l"
 save_string (OVEN);
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 43 "chef-lexer.l"
+#line 61 "chef-lexer.l"
 save_string (TO);
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 44 "chef-lexer.l"
+#line 62 "chef-lexer.l"
 save_string (DEGREES);
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 45 "chef-lexer.l"
+#line 63 "chef-lexer.l"
 save_string (CELSIUS);
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 46 "chef-lexer.l"
+#line 64 "chef-lexer.l"
 save_string (GAS);
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 47 "chef-lexer.l"
+#line 65 "chef-lexer.l"
 save_string (MARK);
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 48 "chef-lexer.l"
+#line 66 "chef-lexer.l"
 save_string (TAKE);
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 49 "chef-lexer.l"
+#line 67 "chef-lexer.l"
 save_string (FROM);
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 50 "chef-lexer.l"
+#line 68 "chef-lexer.l"
 save_string (REFRIGERATOR);
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 51 "chef-lexer.l"
+#line 69 "chef-lexer.l"
 save_string (PUT);
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 52 "chef-lexer.l"
+#line 70 "chef-lexer.l"
 save_string (INTO);
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 53 "chef-lexer.l"
+#line 71 "chef-lexer.l"
 save_string (THE);
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 54 "chef-lexer.l"
+#line 72 "chef-lexer.l"
 save_string (MIXING);
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 55 "chef-lexer.l"
+#line 73 "chef-lexer.l"
 save_string (BOWL);
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 56 "chef-lexer.l"
+#line 74 "chef-lexer.l"
 save_string (FOLD);
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 57 "chef-lexer.l"
+#line 75 "chef-lexer.l"
 save_string (ADD);
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 58 "chef-lexer.l"
+#line 76 "chef-lexer.l"
 save_string (REMOVE);
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 59 "chef-lexer.l"
+#line 77 "chef-lexer.l"
 save_string (COMBINE);
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 60 "chef-lexer.l"
+#line 78 "chef-lexer.l"
 save_string (DIVIDE);
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 61 "chef-lexer.l"
+#line 79 "chef-lexer.l"
 save_string (DRY);
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 62 "chef-lexer.l"
+#line 80 "chef-lexer.l"
 save_string (INGREDIENTS);
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 63 "chef-lexer.l"
+#line 81 "chef-lexer.l"
 save_string (LIQUEFY);
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 64 "chef-lexer.l"
+#line 82 "chef-lexer.l"
 save_string (CONTENTS);
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 65 "chef-lexer.l"
+#line 83 "chef-lexer.l"
 save_string (OF);
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 66 "chef-lexer.l"
+#line 84 "chef-lexer.l"
 save_string (STIR);
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 67 "chef-lexer.l"
+#line 85 "chef-lexer.l"
 save_string (FOR);
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 68 "chef-lexer.l"
+#line 86 "chef-lexer.l"
 save_string (MIX);
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 69 "chef-lexer.l"
+#line 87 "chef-lexer.l"
 save_string (WELL);
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 70 "chef-lexer.l"
+#line 88 "chef-lexer.l"
 save_string (CLEAN);
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 71 "chef-lexer.l"
+#line 89 "chef-lexer.l"
 save_string (POUR);
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 72 "chef-lexer.l"
+#line 90 "chef-lexer.l"
 save_string (BAKING);
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 73 "chef-lexer.l"
+#line 91 "chef-lexer.l"
 save_string (DISH);
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 74 "chef-lexer.l"
+#line 92 "chef-lexer.l"
 save_string (UNTIL);
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 75 "chef-lexer.l"
+#line 93 "chef-lexer.l"
 save_string (SET);
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 76 "chef-lexer.l"
+#line 94 "chef-lexer.l"
 save_string (ASIDE);
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 77 "chef-lexer.l"
+#line 95 "chef-lexer.l"
 save_string (SERVE);
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 78 "chef-lexer.l"
+#line 96 "chef-lexer.l"
 save_string (WITH);
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 79 "chef-lexer.l"
+#line 97 "chef-lexer.l"
 save_string (REFRIGERATE);
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 80 "chef-lexer.l"
+#line 98 "chef-lexer.l"
 save_string (SERVES);
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 81 "chef-lexer.l"
+#line 99 "chef-lexer.l"
 save_string (WORD);
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 82 "chef-lexer.l"
+#line 100 "chef-lexer.l"
 save_number (NUMBER);
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 83 "chef-lexer.l"
+#line 101 "chef-lexer.l"
 save_number (ORDER);
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 84 "chef-lexer.l"
+#line 102 "chef-lexer.l"
 return *yytext;
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
-#line 86 "chef-lexer.l"
+#line 104 "chef-lexer.l"
 ECHO;
 	YY_BREAK
-#line 1199 "chef-lexer.c"
+#line 1216 "chef-lexer.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -2192,7 +2209,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 86 "chef-lexer.l"
+#line 104 "chef-lexer.l"
 
 
 
