@@ -32,6 +32,15 @@
 
 char *srcfile;
 
+struct ingredient_map
+{
+  struct ingredient *ing;
+  gcc_jit_lvalue *var;
+  struct ingredient_map *next;
+};
+
+static struct ingredient_map *ings;
+
 static gcc_jit_type *type_void;
 static gcc_jit_type *type_void_ptr;
 static gcc_jit_type *type_int;
@@ -253,18 +262,21 @@ add_inst_take (gcc_jit_context *ctx, gcc_jit_block *block,
 	       struct recipe *rcp)
 {
   gcc_jit_rvalue *var_dest;
-  struct ingredient *temp;
-  for (temp = rcp->ings; temp != NULL; temp = temp->next)
+  struct ingredient_map *map;
+  for (map = ings; map != NULL; map = map->next)
     {
-      if (strcmp (temp->name, rcp->method->ing) == 0)
+      if (strcmp (map->ing->name, rcp->method->ing) == 0)
 	{
-	  break;
+	  gcc_jit_rvalue *var_dest =
+	    gcc_jit_lvalue_get_address (map->var, NULL);
+	  gcc_jit_rvalue *read_int_call =
+	    gcc_jit_context_new_call (ctx, NULL, func_read_int, 1, &var_dest);
+	  gcc_jit_block_add_eval (block, NULL, read_int_call);
+	  return;
 	}
     }
+  error ("undefined ingredient: %s", rcp->method->ing);
 }
-
-/* TODO Rewrite put and take instructions to use global variables
-   for ingredients */
 
 static void
 add_inst_put (gcc_jit_context *ctx, gcc_jit_block *block,
@@ -277,24 +289,49 @@ add_inst_put (gcc_jit_context *ctx, gcc_jit_block *block,
     NULL
   };
   gcc_jit_rvalue *push_call;
-  struct ingredient *temp;
-  for (temp = rcp->ings; temp != NULL; temp = temp->next)
+  struct ingredient_map *map;
+  for (map = ings; map != NULL; map = map->next)
     {
-      if (strcmp (temp->name, rcp->method->ing) == 0)
+      if (strcmp (map->ing->name, rcp->method->ing) == 0)
 	{
-	  call_args[1] =
-	    gcc_jit_context_new_rvalue_from_int (ctx, type_int, temp->initval);
-	  call_args[2] =
-	    gcc_jit_context_new_rvalue_from_int (ctx, type_int,
-						 temp->type == MEASURE_LIQUID);
+	  call_args[1] = gcc_jit_lvalue_as_rvalue (map->var);
+	  if (map->ing->type == MEASURE_LIQUID)
+	    call_args[2] = gcc_jit_context_one (ctx, type_int);
+	  else
+	    call_args[2] = gcc_jit_context_zero (ctx, type_int);
 	  break;
 	}
     }
+  
   if (call_args[1] == NULL || call_args[2] == NULL)
-    error ("undefined ingredient: %s\n", rcp->method->ing);
+    error ("undefined ingredient: %s", rcp->method->ing);
 
   push_call = gcc_jit_context_new_call (ctx, NULL, func_push, 3, call_args);
   gcc_jit_block_add_eval (block, NULL, push_call);
+}
+
+static void
+add_inst_fold (gcc_jit_context *ctx, gcc_jit_block *block,
+	       struct recipe *rcp)
+{
+  struct ingredient_map *map;
+  for (map = ings; map != NULL; map = map->next)
+    {
+      if (strcmp (map->ing->name, rcp->method->ing) == 0)
+	{
+	  gcc_jit_rvalue *var_bowl =
+	    gcc_jit_context_new_rvalue_from_int (ctx, type_int,
+						 rcp->method->bowl - 1);
+	  gcc_jit_rvalue *pop_call =
+	    gcc_jit_context_new_call (ctx, NULL, func_pop, 1, &var_bowl);
+	  gcc_jit_lvalue *var_value =
+	    gcc_jit_rvalue_dereference_field (pop_call, NULL, field_value);
+	  gcc_jit_block_add_assignment (block, NULL, map->var,
+					gcc_jit_lvalue_as_rvalue (var_value));
+	  return;
+	}
+    }
+  error ("undefined ingredient: %s", rcp->method->ing);
 }
 
 static void
@@ -307,6 +344,15 @@ gen_func_main (gcc_jit_context *ctx)
     gcc_jit_function_new_local (func_main, NULL, type_container_ptr, "ptr");
   gcc_jit_block *block_entry =
     gcc_jit_function_new_block (func_main, "entry");
+  
+  struct ingredient_map *map;
+  for (map = ings; map != NULL; map = map->next)
+    {
+      gcc_jit_rvalue *var_initval =
+	gcc_jit_context_new_rvalue_from_int (ctx, type_int,
+					     map->ing->initval);
+      gcc_jit_block_add_assignment (block_entry, NULL, map->var, var_initval);
+    }
 
   for (; rcp->method != NULL; rcp->method = rcp->method->next)
     {
@@ -318,6 +364,9 @@ gen_func_main (gcc_jit_context *ctx)
 	case INST_PUT:
 	  add_inst_put (ctx, block_entry, rcp);
 	  break;
+	case INST_FOLD:
+	  add_inst_fold (ctx, block_entry, rcp);
+	  break;
 	}
     }
   gcc_jit_block_end_with_return (block_entry, NULL,
@@ -325,9 +374,10 @@ gen_func_main (gcc_jit_context *ctx)
 }
 
 static gcc_jit_context *
-generate_context (struct recipe *recipe)
+generate_context (void)
 {
   gcc_jit_context *ctx = gcc_jit_context_acquire ();
+  struct ingredient *temp;
   gcc_jit_context_set_int_option (ctx, GCC_JIT_INT_OPTION_OPTIMIZATION_LEVEL,
 				  optimization);
   gcc_jit_context_set_bool_option (ctx, GCC_JIT_BOOL_OPTION_DEBUGINFO,
@@ -339,6 +389,27 @@ generate_context (struct recipe *recipe)
   type_const_char_ptr =
     gcc_jit_context_get_type (ctx, GCC_JIT_TYPE_CONST_CHAR_PTR);
   gen_prog_start (ctx);
+  for (temp = rcp->ings; temp != NULL; temp = temp->next)
+    {
+      struct ingredient_map *map;
+      if (ings == NULL)
+        {
+	  ings = xmalloc (sizeof (struct ingredient_map));
+	  map = ings;
+	}
+      else
+	{
+	  map = ings;
+	  while (map->next != NULL)
+	    map = map->next;
+	  map->next = xmalloc (sizeof (struct ingredient_map));
+	  map = map->next;
+	}
+      map->ing = temp;
+      map->var = gcc_jit_context_new_global (ctx, NULL,
+					     GCC_JIT_GLOBAL_INTERNAL,
+					     type_int, temp->name);
+    }
   gen_func_main (ctx);
   return ctx;
 }
@@ -346,7 +417,9 @@ generate_context (struct recipe *recipe)
 void
 compile (char *output)
 {
-  gcc_jit_context *ctx = generate_context (rcp);
+  gcc_jit_context *ctx = generate_context ();
+  if (awaiting_exit)
+    exit (1);
   switch (last_phase)
     {
     case COMPILE:
