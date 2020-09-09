@@ -258,8 +258,7 @@ gen_prog_start (gcc_jit_context *ctx)
 }
 
 static void
-add_inst_take (gcc_jit_context *ctx, gcc_jit_block *block,
-	       struct recipe *rcp)
+add_inst_take (gcc_jit_context *ctx, gcc_jit_block *block)
 {
   gcc_jit_rvalue *var_dest;
   struct ingredient_map *map;
@@ -272,15 +271,31 @@ add_inst_take (gcc_jit_context *ctx, gcc_jit_block *block,
 	  gcc_jit_rvalue *read_int_call =
 	    gcc_jit_context_new_call (ctx, NULL, func_read_int, 1, &var_dest);
 	  gcc_jit_block_add_eval (block, NULL, read_int_call);
-	  return;
 	}
     }
-  error ("undefined ingredient: %s", rcp->method->ing);
+  if (map == NULL)
+    {
+      gcc_jit_lvalue *global_new =
+	gcc_jit_context_new_global (ctx, NULL, GCC_JIT_GLOBAL_INTERNAL,
+				    type_int, rcp->method->ing);
+      gcc_jit_rvalue *var_dest =
+	gcc_jit_lvalue_get_address (global_new, NULL);
+      gcc_jit_rvalue *read_int_call =
+	gcc_jit_context_new_call (ctx, NULL, func_read_int, 1, &var_dest);
+      struct ingredient_map *temp = xmalloc (sizeof (struct ingredient_map));
+      temp->ing = xmalloc (sizeof (struct ingredient));
+      temp->ing->name = rcp->method->ing;
+      temp->ing->initval = 0;
+      temp->ing->type = MEASURE_DRY;
+      temp->var = global_new;
+      temp->next = ings;
+      ings = temp;
+      gcc_jit_block_add_eval (block, NULL, read_int_call);
+    }
 }
 
 static void
-add_inst_put (gcc_jit_context *ctx, gcc_jit_block *block,
-	      struct recipe *rcp)
+add_inst_put (gcc_jit_context *ctx, gcc_jit_block *block)
 {
   gcc_jit_rvalue *call_args[3] = {
     gcc_jit_context_new_rvalue_from_int (ctx, type_int,
@@ -311,8 +326,7 @@ add_inst_put (gcc_jit_context *ctx, gcc_jit_block *block,
 }
 
 static void
-add_inst_fold (gcc_jit_context *ctx, gcc_jit_block *block,
-	       struct recipe *rcp)
+add_inst_fold (gcc_jit_context *ctx, gcc_jit_block *block)
 {
   struct ingredient_map *map;
   for (map = ings; map != NULL; map = map->next)
@@ -332,6 +346,69 @@ add_inst_fold (gcc_jit_context *ctx, gcc_jit_block *block,
 	}
     }
   error ("undefined ingredient: %s", rcp->method->ing);
+}
+
+static void
+add_inst_add (gcc_jit_context *ctx, gcc_jit_block *block)
+{
+  struct ingredient_map *map;
+  for (map = ings; map != NULL; map = map->next)
+    {
+      if (strcmp (map->ing->name, rcp->method->ing) == 0)
+	{
+	  gcc_jit_rvalue *var_bowl =
+	    gcc_jit_context_new_rvalue_from_int (ctx, type_int,
+						 rcp->method->bowl - 1);
+	  gcc_jit_rvalue *rvalue_bowls =
+	    gcc_jit_lvalue_as_rvalue (var_bowls);
+	  gcc_jit_lvalue *target_container =
+	    gcc_jit_context_new_array_access (ctx, NULL, rvalue_bowls,
+					      var_bowl);
+	  gcc_jit_rvalue *rvalue_container =
+	    gcc_jit_lvalue_as_rvalue (target_container);
+	  gcc_jit_lvalue *var_value =
+	    gcc_jit_rvalue_dereference_field (rvalue_container, NULL,
+					      field_value);
+	  gcc_jit_rvalue *rvalue_value = gcc_jit_lvalue_as_rvalue (var_value);
+	  gcc_jit_rvalue *var_ing = gcc_jit_lvalue_as_rvalue (map->var);
+	  gcc_jit_rvalue *sum =
+	    gcc_jit_context_new_binary_op (ctx, NULL, GCC_JIT_BINARY_OP_PLUS,
+					   type_int, var_ing, rvalue_value);
+	  gcc_jit_rvalue *push_call_args[3] = {
+	    var_bowl,
+	    sum,
+	    gcc_jit_context_zero (ctx, type_int)
+	  };
+	  gcc_jit_rvalue *push_call =
+	    gcc_jit_context_new_call (ctx, NULL, func_push, 3,
+				      push_call_args);
+	  gcc_jit_block_add_eval (block, NULL, push_call);
+	  return;
+	}
+    }
+  error ("undefined ingredient: %s", rcp->method->ing);
+}
+
+static void
+add_inst_pour (gcc_jit_context *ctx, gcc_jit_block *block)
+{
+  /* TODO Make pouring not override previous value in dish */
+  gcc_jit_rvalue *bowl_id =
+    gcc_jit_context_new_rvalue_from_int (ctx, type_int,
+					 rcp->method->bowl - 1);
+  gcc_jit_rvalue *dish_id =
+    gcc_jit_context_new_rvalue_from_int (ctx, type_int,
+					 rcp->method->dish - 1);
+  gcc_jit_lvalue *var_bowl =
+    gcc_jit_context_new_array_access (ctx, NULL,
+				      gcc_jit_lvalue_as_rvalue (var_bowls),
+				      bowl_id);
+  gcc_jit_lvalue *var_dish =
+    gcc_jit_context_new_array_access (ctx, NULL,
+				      gcc_jit_lvalue_as_rvalue (var_dishes),
+				      dish_id);
+  gcc_jit_rvalue *rvalue_bowl = gcc_jit_lvalue_as_rvalue (var_bowl);
+  gcc_jit_block_add_assignment (block, NULL, var_dish, rvalue_bowl);
 }
 
 static void
@@ -359,13 +436,19 @@ gen_func_main (gcc_jit_context *ctx)
       switch (rcp->method->type)
 	{
 	case INST_TAKE:
-	  add_inst_take (ctx, block_entry, rcp);
+	  add_inst_take (ctx, block_entry);
 	  break;
 	case INST_PUT:
-	  add_inst_put (ctx, block_entry, rcp);
+	  add_inst_put (ctx, block_entry);
 	  break;
 	case INST_FOLD:
-	  add_inst_fold (ctx, block_entry, rcp);
+	  add_inst_fold (ctx, block_entry);
+	  break;
+	case INST_ADD:
+	  add_inst_add (ctx, block_entry);
+	  break;
+	case INST_POUR:
+	  add_inst_pour (ctx, block_entry);
 	  break;
 	}
     }
