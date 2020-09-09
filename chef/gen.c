@@ -37,12 +37,16 @@ static gcc_jit_type *type_void_ptr;
 static gcc_jit_type *type_int;
 static gcc_jit_type *type_container_ptr;
 static gcc_jit_type *type_size_t;
+static gcc_jit_type *type_const_char_ptr;
 static gcc_jit_field *field_value;
 static gcc_jit_field *field_type;
 static gcc_jit_field *field_next;
 static gcc_jit_function *func_malloc;
+static gcc_jit_function *func_scanf;
+static gcc_jit_function *func_getchar;
 static gcc_jit_function *func_push;
 static gcc_jit_function *func_pop;
+static gcc_jit_function *func_read_int;
 static gcc_jit_lvalue *var_bowls;
 static gcc_jit_lvalue *var_dishes;
 
@@ -160,6 +164,43 @@ gen_func_pop (gcc_jit_context *ctx, gcc_jit_location *loc)
   return func;
 }
 
+static gcc_jit_function *
+gen_func_read_int (gcc_jit_context *ctx, gcc_jit_location *loc)
+{
+  gcc_jit_param *param_dest =
+    gcc_jit_context_new_param (ctx, loc, gcc_jit_type_get_pointer (type_int),
+			       "dest");
+  gcc_jit_function *func =
+    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_INTERNAL,
+				  type_void, "read_int", 1, &param_dest, 0);
+  gcc_jit_block *block_entry = gcc_jit_function_new_block (func, "entry");
+  gcc_jit_block *block_fail = gcc_jit_function_new_block (func, "fail");
+  gcc_jit_block *block_done = gcc_jit_function_new_block (func, "done");
+  gcc_jit_rvalue *fmt_string =
+    gcc_jit_context_new_string_literal (ctx, "%d");
+  gcc_jit_rvalue *var_dest = gcc_jit_param_as_rvalue (param_dest);
+  gcc_jit_rvalue *scanf_call_args[2] = {fmt_string, var_dest};
+  gcc_jit_rvalue *scanf_call =
+    gcc_jit_context_new_call (ctx, loc, func_scanf, 2, scanf_call_args);
+  gcc_jit_rvalue *scanf_done =
+    gcc_jit_context_new_comparison (ctx, loc, GCC_JIT_COMPARISON_LT,
+				    scanf_call,
+				    gcc_jit_context_one (ctx, type_int));
+  gcc_jit_rvalue *getchar_call =
+    gcc_jit_context_new_call (ctx, loc, func_getchar, 0, NULL);
+  gcc_jit_rvalue *newline_char =
+    gcc_jit_context_new_rvalue_from_int (ctx, type_int, '\n');
+  gcc_jit_rvalue *getchar_done =
+    gcc_jit_context_new_comparison (ctx, loc, GCC_JIT_COMPARISON_EQ,
+				    getchar_call, newline_char);
+  gcc_jit_block_end_with_conditional (block_entry, loc, scanf_done,
+				      block_fail, block_done);
+  gcc_jit_block_end_with_conditional (block_fail, loc, getchar_done,
+				      block_entry, block_fail);
+  gcc_jit_block_end_with_void_return (block_done, loc);
+  return func;
+}
+
 static void
 gen_prog_start (gcc_jit_context *ctx)
 {
@@ -168,12 +209,21 @@ gen_prog_start (gcc_jit_context *ctx)
   gcc_jit_field *container_fields[3];
   gcc_jit_type *type_container = gcc_jit_struct_as_type (struct_container);
   gcc_jit_type *type_container_ptr_arr;
-  
   gcc_jit_param *param_size =
     gcc_jit_context_new_param (ctx, NULL, type_size_t, "size");
+  gcc_jit_param *param_fmt =
+    gcc_jit_context_new_param (ctx, NULL, type_const_char_ptr, "fmt");
+  
   func_malloc =
     gcc_jit_context_new_function (ctx, NULL, GCC_JIT_FUNCTION_IMPORTED,
 				  type_void_ptr, "malloc", 1, &param_size, 0);
+  func_scanf =
+    gcc_jit_context_new_function (ctx, NULL, GCC_JIT_FUNCTION_IMPORTED,
+				  type_int, "scanf", 1, &param_fmt, 1);
+  func_getchar =
+    gcc_jit_context_new_function (ctx, NULL, GCC_JIT_FUNCTION_IMPORTED,
+				  type_int, "getchar", 0, NULL, 0);
+  
   type_container_ptr = gcc_jit_type_get_pointer (type_container);
   type_container_ptr_arr =
     gcc_jit_context_new_array_type (ctx, NULL, type_container_ptr,
@@ -195,10 +245,30 @@ gen_prog_start (gcc_jit_context *ctx)
   
   func_push = gen_func_push (ctx, NULL);
   func_pop = gen_func_pop (ctx, NULL);
+  func_read_int = gen_func_read_int (ctx, NULL);
 }
 
 static void
-add_inst_put (gcc_jit_context *ctx, gcc_jit_block *block, struct recipe *rcp)
+add_inst_take (gcc_jit_context *ctx, gcc_jit_block *block,
+	       struct recipe *rcp)
+{
+  gcc_jit_rvalue *var_dest;
+  struct ingredient *temp;
+  for (temp = rcp->ings; temp != NULL; temp = temp->next)
+    {
+      if (strcmp (temp->name, rcp->method->ing) == 0)
+	{
+	  break;
+	}
+    }
+}
+
+/* TODO Rewrite put and take instructions to use global variables
+   for ingredients */
+
+static void
+add_inst_put (gcc_jit_context *ctx, gcc_jit_block *block,
+	      struct recipe *rcp)
 {
   gcc_jit_rvalue *call_args[3] = {
     gcc_jit_context_new_rvalue_from_int (ctx, type_int,
@@ -217,6 +287,7 @@ add_inst_put (gcc_jit_context *ctx, gcc_jit_block *block, struct recipe *rcp)
 	  call_args[2] =
 	    gcc_jit_context_new_rvalue_from_int (ctx, type_int,
 						 temp->type == MEASURE_LIQUID);
+	  break;
 	}
     }
   if (call_args[1] == NULL || call_args[2] == NULL)
@@ -241,6 +312,9 @@ gen_func_main (gcc_jit_context *ctx)
     {
       switch (rcp->method->type)
 	{
+	case INST_TAKE:
+	  add_inst_take (ctx, block_entry, rcp);
+	  break;
 	case INST_PUT:
 	  add_inst_put (ctx, block_entry, rcp);
 	  break;
@@ -262,6 +336,8 @@ generate_context (struct recipe *recipe)
   type_void_ptr = gcc_jit_context_get_type (ctx, GCC_JIT_TYPE_VOID_PTR);
   type_int = gcc_jit_context_get_type (ctx, GCC_JIT_TYPE_INT);
   type_size_t = gcc_jit_context_get_type (ctx, GCC_JIT_TYPE_SIZE_T);
+  type_const_char_ptr =
+    gcc_jit_context_get_type (ctx, GCC_JIT_TYPE_CONST_CHAR_PTR);
   gen_prog_start (ctx);
   gen_func_main (ctx);
   return ctx;
