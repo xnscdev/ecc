@@ -1,4 +1,5 @@
 AUTOMAKE_OPTIONS = gnu
 
-# libecc should be the first; tests should be last
-SUBDIRS = libecc chef tests
+# libecc should be the first non-documentation
+# directory; tests should be last
+SUBDIRS = doc libecc chef tests

@@ -42,6 +42,7 @@ AC_CHECK_HEADER([libgccjit.h], [],
 
 AC_CONFIG_FILES([
 	Makefile
+	doc/Makefile
 	chef/Makefile
 	libecc/Makefile
 	tests/Makefile

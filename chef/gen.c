@@ -694,6 +694,21 @@ add_inst_add_dry (gcc_jit_context *ctx, gcc_jit_block *block)
 }
 
 static void
+add_inst_liquefy_ing (void)
+{
+  struct ingredient_map *map;
+  for (map = ings; map != NULL; map = map->next)
+    {
+      if (strcmp (map->ing->name, rcp->method->ing) == 0)
+	{
+	  map->ing->type = MEASURE_LIQUID;
+	  return;
+	}
+    }
+  error ("undefined ingredient: %s", rcp->method->ing);
+}
+
+static void
 add_inst_pour (gcc_jit_context *ctx, gcc_jit_block *block)
 {
   gcc_jit_rvalue *bowl_id =
@@ -754,6 +769,9 @@ gen_func_main (gcc_jit_context *ctx)
 	  break;
 	case INST_ADD_DRY:
 	  add_inst_add_dry (ctx, block_entry);
+	  break;
+	case INST_LIQUEFY_ING:
+	  add_inst_liquefy_ing ();
 	  break;
 	case INST_POUR:
 	  add_inst_pour (ctx, block_entry);

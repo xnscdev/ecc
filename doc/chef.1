@@ -1,0 +1,44 @@
+.Dd September 10, 2020
+.Dt CHEF 1
+.Sh NAME
+.Nm chef
+.Nd ECC Chef compiler front-end
+.Sh SYNOPSIS
+.Nm
+.Op Fl O Ns Ar #
+.Op Fl S | c
+.Op Fl g
+.Op Ar OPTIONS
+.Ar FILE...
+.Nm
+.Fl h | -help
+.Nm
+.Fl -version
+.Sh DESCRIPTION
+.Nm
+is the ECC front-end for the Chef esoteric programming language. The options
+accepted are similar to those of traditional compilers. Each option must
+be specified as a separate argument; grouping multiple single-letter options
+into one argument will be treated as a different option.
+.Sh OPTIONS
+.Bl -tag -width -indent
+.It Fl O Ns Ar #
+Optimize generated code. The level of optimization is identical to GCC's
+optimization levels. \fI#\fR must be one of 0, 1, 2, or 3.
+.It Fl S
+This option will cause the compiler to terminate after the compilation
+stage is finished and not assemble or link the result. The resulting output
+will be in assembler code.
+.It Fl c
+This option will cause the compiler to terminate after the assembly
+stage is finished and not link the result. The resulting output will be
+an object file.
+.It Fl g
+Generate debugging information in resulting code. This option has no effect
+if the \fB\-S\fR option is active.
+.It Fl h, -help
+The compiler will print help and usage information to standard output and
+immediately terminate.
+.It Fl -version
+The compiler will print its version string and immediately terminate.
+.El
