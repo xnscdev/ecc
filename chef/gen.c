@@ -59,6 +59,10 @@ static gcc_jit_function *func_push;
 static gcc_jit_function *func_pop;
 static gcc_jit_function *func_pop_dish;
 static gcc_jit_function *func_read_int;
+static gcc_jit_function *func_add_dry;
+static gcc_jit_function *func_liquefy;
+static gcc_jit_function *func_stir;
+static gcc_jit_function *func_mix;
 static gcc_jit_function *func_pour;
 static gcc_jit_function *func_print_dish;
 static gcc_jit_lvalue *var_bowls;
@@ -318,6 +322,73 @@ gen_func_print_dish (gcc_jit_context *ctx, gcc_jit_location *loc)
 }
 
 static gcc_jit_function *
+gen_func_add_dry (gcc_jit_context *ctx, gcc_jit_location *loc)
+{
+  gcc_jit_param *param_bowl =
+    gcc_jit_context_new_param (ctx, loc, type_int, "bowl");
+  gcc_jit_function *func =
+    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_INTERNAL,
+				  type_void, "add_dry", 1, &param_bowl, 0);
+  gcc_jit_lvalue *var_temp =
+    gcc_jit_function_new_local (func, loc, type_container_ptr, "temp");
+  gcc_jit_lvalue *var_total =
+    gcc_jit_function_new_local (func, loc, type_int, "total");
+  gcc_jit_block *block_entry = gcc_jit_function_new_block (func, "entry");
+  gcc_jit_block *block_check = gcc_jit_function_new_block (func, "check");
+  gcc_jit_block *block_add = gcc_jit_function_new_block (func, "add");
+  gcc_jit_block *block_next = gcc_jit_function_new_block (func, "next");
+  gcc_jit_block *block_done = gcc_jit_function_new_block (func, "done");
+  gcc_jit_rvalue *null = gcc_jit_context_null (ctx, type_container_ptr);
+  gcc_jit_rvalue *push_call_args[3] = {
+    gcc_jit_param_as_rvalue (param_bowl),
+    gcc_jit_lvalue_as_rvalue (var_total),
+    gcc_jit_context_zero (ctx, type_int)
+  };
+  gcc_jit_lvalue *var_bowl =
+    gcc_jit_context_new_array_access (ctx, loc,
+				      gcc_jit_lvalue_as_rvalue (var_bowls),
+				      gcc_jit_param_as_rvalue (param_bowl));
+  gcc_jit_rvalue *condition =
+    gcc_jit_context_new_comparison (ctx, loc, GCC_JIT_COMPARISON_EQ,
+				    gcc_jit_lvalue_as_rvalue (var_temp),
+				    null);
+  gcc_jit_lvalue *temp_value =
+    gcc_jit_rvalue_dereference_field (gcc_jit_lvalue_as_rvalue (var_temp),
+				      loc, field_value);
+  gcc_jit_lvalue *temp_type =
+    gcc_jit_rvalue_dereference_field (gcc_jit_lvalue_as_rvalue (var_temp),
+				      loc, field_type);
+  gcc_jit_lvalue *temp_next =
+    gcc_jit_rvalue_dereference_field (gcc_jit_lvalue_as_rvalue (var_temp),
+				      loc, field_next);
+  gcc_jit_rvalue *check_dry =
+    gcc_jit_context_new_comparison (ctx, loc, GCC_JIT_COMPARISON_EQ,
+				    gcc_jit_lvalue_as_rvalue (temp_type),
+				    gcc_jit_context_zero (ctx, type_int));
+  gcc_jit_block_add_assignment (block_entry, loc, var_temp,
+				gcc_jit_lvalue_as_rvalue (var_bowl));
+  gcc_jit_block_add_assignment (block_entry, loc, var_total,
+				gcc_jit_context_zero (ctx, type_int));
+  gcc_jit_block_end_with_conditional (block_entry, loc, condition,
+				      block_done, block_check);
+  gcc_jit_block_end_with_conditional (block_check, loc, check_dry,
+				      block_add, block_next);
+  gcc_jit_block_add_assignment_op (block_add, loc, var_total,
+				   GCC_JIT_BINARY_OP_PLUS,
+				   gcc_jit_lvalue_as_rvalue (temp_value));
+  gcc_jit_block_end_with_jump (block_add, loc, block_next);
+  gcc_jit_block_add_assignment (block_next, loc, var_temp,
+				gcc_jit_lvalue_as_rvalue (temp_next));
+  gcc_jit_block_end_with_conditional (block_next, loc, condition,
+				      block_done, block_check);
+  gcc_jit_block_add_eval (block_done, loc,
+			  gcc_jit_context_new_call (ctx, loc, func_push, 3,
+						    push_call_args));
+  gcc_jit_block_end_with_void_return (block_done, loc);
+  return func;
+}
+
+static gcc_jit_function *
 gen_func_pour (gcc_jit_context *ctx, gcc_jit_location *loc)
 {
   gcc_jit_param *param_bowl =
@@ -474,6 +545,7 @@ gen_prog_start (gcc_jit_context *ctx)
   func_pop = gen_func_pop (ctx, NULL);
   func_pop_dish = gen_func_pop_dish (ctx, NULL);
   func_read_int = gen_func_read_int (ctx, NULL);
+  func_add_dry = gen_func_add_dry (ctx, NULL);
   func_pour = gen_func_pour (ctx, NULL);
   func_print_dish = gen_func_print_dish (ctx, NULL);
 }
@@ -569,7 +641,8 @@ add_inst_fold (gcc_jit_context *ctx, gcc_jit_block *block)
 }
 
 static void
-add_inst_add (gcc_jit_context *ctx, gcc_jit_block *block)
+add_inst_arith (gcc_jit_context *ctx, gcc_jit_block *block,
+		enum gcc_jit_binary_op operation)
 {
   struct ingredient_map *map;
   for (map = ings; map != NULL; map = map->next)
@@ -591,12 +664,12 @@ add_inst_add (gcc_jit_context *ctx, gcc_jit_block *block)
 					      field_value);
 	  gcc_jit_rvalue *rvalue_value = gcc_jit_lvalue_as_rvalue (var_value);
 	  gcc_jit_rvalue *var_ing = gcc_jit_lvalue_as_rvalue (map->var);
-	  gcc_jit_rvalue *sum =
-	    gcc_jit_context_new_binary_op (ctx, NULL, GCC_JIT_BINARY_OP_PLUS,
-					   type_int, rvalue_value, var_ing);
+	  gcc_jit_rvalue *answer =
+	    gcc_jit_context_new_binary_op (ctx, NULL, operation, type_int,
+					   rvalue_value, var_ing);
 	  gcc_jit_rvalue *push_call_args[3] = {
 	    var_bowl,
-	    sum,
+	    answer,
 	    gcc_jit_context_zero (ctx, type_int)
 	  };
 	  gcc_jit_rvalue *push_call =
@@ -610,127 +683,14 @@ add_inst_add (gcc_jit_context *ctx, gcc_jit_block *block)
 }
 
 static void
-add_inst_remove (gcc_jit_context *ctx, gcc_jit_block *block)
+add_inst_add_dry (gcc_jit_context *ctx, gcc_jit_block *block)
 {
-  struct ingredient_map *map;
-  for (map = ings; map != NULL; map = map->next)
-    {
-      if (strcmp (map->ing->name, rcp->method->ing) == 0)
-	{
-	  gcc_jit_rvalue *var_bowl =
-	    gcc_jit_context_new_rvalue_from_int (ctx, type_int,
-						 rcp->method->bowl - 1);
-	  gcc_jit_rvalue *rvalue_bowls =
-	    gcc_jit_lvalue_as_rvalue (var_bowls);
-	  gcc_jit_lvalue *target_container =
-	    gcc_jit_context_new_array_access (ctx, NULL, rvalue_bowls,
-					      var_bowl);
-	  gcc_jit_rvalue *rvalue_container =
-	    gcc_jit_lvalue_as_rvalue (target_container);
-	  gcc_jit_lvalue *var_value =
-	    gcc_jit_rvalue_dereference_field (rvalue_container, NULL,
-					      field_value);
-	  gcc_jit_rvalue *rvalue_value = gcc_jit_lvalue_as_rvalue (var_value);
-	  gcc_jit_rvalue *var_ing = gcc_jit_lvalue_as_rvalue (map->var);
-	  gcc_jit_rvalue *difference =
-	    gcc_jit_context_new_binary_op (ctx, NULL, GCC_JIT_BINARY_OP_MINUS,
-					   type_int, rvalue_value, var_ing);
-	  gcc_jit_rvalue *push_call_args[3] = {
-	    var_bowl,
-	    difference,
-	    gcc_jit_context_zero (ctx, type_int)
-	  };
-	  gcc_jit_rvalue *push_call =
-	    gcc_jit_context_new_call (ctx, NULL, func_push, 3,
-				      push_call_args);
-	  gcc_jit_block_add_eval (block, NULL, push_call);
-	  return;
-	}
-    }
-  error ("undefined ingredient: %s", rcp->method->ing);
-}
-
-static void
-add_inst_combine (gcc_jit_context *ctx, gcc_jit_block *block)
-{
-  struct ingredient_map *map;
-  for (map = ings; map != NULL; map = map->next)
-    {
-      if (strcmp (map->ing->name, rcp->method->ing) == 0)
-	{
-	  gcc_jit_rvalue *var_bowl =
-	    gcc_jit_context_new_rvalue_from_int (ctx, type_int,
-						 rcp->method->bowl - 1);
-	  gcc_jit_rvalue *rvalue_bowls =
-	    gcc_jit_lvalue_as_rvalue (var_bowls);
-	  gcc_jit_lvalue *target_container =
-	    gcc_jit_context_new_array_access (ctx, NULL, rvalue_bowls,
-					      var_bowl);
-	  gcc_jit_rvalue *rvalue_container =
-	    gcc_jit_lvalue_as_rvalue (target_container);
-	  gcc_jit_lvalue *var_value =
-	    gcc_jit_rvalue_dereference_field (rvalue_container, NULL,
-					      field_value);
-	  gcc_jit_rvalue *rvalue_value = gcc_jit_lvalue_as_rvalue (var_value);
-	  gcc_jit_rvalue *var_ing = gcc_jit_lvalue_as_rvalue (map->var);
-	  gcc_jit_rvalue *product =
-	    gcc_jit_context_new_binary_op (ctx, NULL, GCC_JIT_BINARY_OP_MULT,
-					   type_int, rvalue_value, var_ing);
-	  gcc_jit_rvalue *push_call_args[3] = {
-	    var_bowl,
-	    product,
-	    gcc_jit_context_zero (ctx, type_int)
-	  };
-	  gcc_jit_rvalue *push_call =
-	    gcc_jit_context_new_call (ctx, NULL, func_push, 3,
-				      push_call_args);
-	  gcc_jit_block_add_eval (block, NULL, push_call);
-	  return;
-	}
-    }
-  error ("undefined ingredient: %s", rcp->method->ing);
-}
-
-static void
-add_inst_divide (gcc_jit_context *ctx, gcc_jit_block *block)
-{
-  struct ingredient_map *map;
-  for (map = ings; map != NULL; map = map->next)
-    {
-      if (strcmp (map->ing->name, rcp->method->ing) == 0)
-	{
-	  gcc_jit_rvalue *var_bowl =
-	    gcc_jit_context_new_rvalue_from_int (ctx, type_int,
-						 rcp->method->bowl - 1);
-	  gcc_jit_rvalue *rvalue_bowls =
-	    gcc_jit_lvalue_as_rvalue (var_bowls);
-	  gcc_jit_lvalue *target_container =
-	    gcc_jit_context_new_array_access (ctx, NULL, rvalue_bowls,
-					      var_bowl);
-	  gcc_jit_rvalue *rvalue_container =
-	    gcc_jit_lvalue_as_rvalue (target_container);
-	  gcc_jit_lvalue *var_value =
-	    gcc_jit_rvalue_dereference_field (rvalue_container, NULL,
-					      field_value);
-	  gcc_jit_rvalue *rvalue_value = gcc_jit_lvalue_as_rvalue (var_value);
-	  gcc_jit_rvalue *var_ing = gcc_jit_lvalue_as_rvalue (map->var);
-	  gcc_jit_rvalue *quotient =
-	    gcc_jit_context_new_binary_op (ctx, NULL,
-					   GCC_JIT_BINARY_OP_DIVIDE,
-					   type_int, rvalue_value, var_ing);
-	  gcc_jit_rvalue *push_call_args[3] = {
-	    var_bowl,
-	    quotient,
-	    gcc_jit_context_zero (ctx, type_int)
-	  };
-	  gcc_jit_rvalue *push_call =
-	    gcc_jit_context_new_call (ctx, NULL, func_push, 3,
-				      push_call_args);
-	  gcc_jit_block_add_eval (block, NULL, push_call);
-	  return;
-	}
-    }
-  error ("undefined ingredient: %s", rcp->method->ing);
+  gcc_jit_rvalue *bowl_id =
+    gcc_jit_context_new_rvalue_from_int (ctx, type_int,
+					 rcp->method->bowl - 1);
+  gcc_jit_block_add_eval (block, NULL,
+			  gcc_jit_context_new_call (ctx, NULL, func_add_dry,
+						    1, &bowl_id));
 }
 
 static void
@@ -781,16 +741,19 @@ gen_func_main (gcc_jit_context *ctx)
 	  add_inst_fold (ctx, block_entry);
 	  break;
 	case INST_ADD:
-	  add_inst_add (ctx, block_entry);
+	  add_inst_arith (ctx, block_entry, GCC_JIT_BINARY_OP_PLUS);
 	  break;
 	case INST_REMOVE:
-	  add_inst_remove (ctx, block_entry);
+	  add_inst_arith (ctx, block_entry, GCC_JIT_BINARY_OP_MINUS);
 	  break;
 	case INST_COMBINE:
-	  add_inst_combine (ctx, block_entry);
+	  add_inst_arith (ctx, block_entry, GCC_JIT_BINARY_OP_MULT);
 	  break;
 	case INST_DIVIDE:
-	  add_inst_divide (ctx, block_entry);
+	  add_inst_arith (ctx, block_entry, GCC_JIT_BINARY_OP_DIVIDE);
+	  break;
+	case INST_ADD_DRY:
+	  add_inst_add_dry (ctx, block_entry);
 	  break;
 	case INST_POUR:
 	  add_inst_pour (ctx, block_entry);
