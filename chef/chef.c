@@ -143,6 +143,8 @@ main (int argc, char **argv)
 
   yywrap ();
   yyparse ();
+  if (awaiting_exit)
+    exit (1);
   compile ("a.out");
   return 0;
 }
