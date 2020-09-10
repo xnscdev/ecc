@@ -389,6 +389,51 @@ gen_func_add_dry (gcc_jit_context *ctx, gcc_jit_location *loc)
 }
 
 static gcc_jit_function *
+gen_func_liquefy (gcc_jit_context *ctx, gcc_jit_location *loc)
+{
+  gcc_jit_param *param_bowl =
+    gcc_jit_context_new_param (ctx, loc, type_int, "bowl");
+  gcc_jit_function *func =
+    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_INTERNAL,
+				  type_void, "liquefy", 1, &param_bowl, 0);
+  gcc_jit_lvalue *var_temp =
+    gcc_jit_function_new_local (func, loc, type_container_ptr, "temp");
+  gcc_jit_block *block_entry = gcc_jit_function_new_block (func, "entry");
+  gcc_jit_block *block_next = gcc_jit_function_new_block (func, "next");
+  gcc_jit_block *block_liquefy =
+    gcc_jit_function_new_block (func, "liquefy");
+  gcc_jit_block *block_done = gcc_jit_function_new_block (func, "done");
+  gcc_jit_rvalue *null = gcc_jit_context_null (ctx, type_container_ptr);
+  gcc_jit_lvalue *var_bowl =
+    gcc_jit_context_new_array_access (ctx, loc,
+				      gcc_jit_lvalue_as_rvalue (var_bowls),
+				      gcc_jit_param_as_rvalue (param_bowl));
+  gcc_jit_lvalue *temp_type =
+    gcc_jit_rvalue_dereference_field (gcc_jit_lvalue_as_rvalue (var_temp),
+				      loc, field_type);
+  gcc_jit_lvalue *temp_next =
+    gcc_jit_rvalue_dereference_field (gcc_jit_lvalue_as_rvalue (var_temp),
+				      loc, field_next);
+  gcc_jit_rvalue *condition =
+    gcc_jit_context_new_comparison (ctx, loc, GCC_JIT_COMPARISON_EQ,
+				    gcc_jit_lvalue_as_rvalue (var_temp),
+				    null);
+  gcc_jit_block_add_assignment (block_entry, loc, var_temp,
+				gcc_jit_lvalue_as_rvalue (var_bowl));
+  gcc_jit_block_end_with_conditional (block_entry, loc, condition,
+				      block_done, block_liquefy);
+  gcc_jit_block_add_assignment (block_next, loc, var_temp,
+				gcc_jit_lvalue_as_rvalue (temp_next));
+  gcc_jit_block_end_with_conditional (block_next, loc, condition,
+				      block_done, block_liquefy);
+  gcc_jit_block_add_assignment (block_liquefy, loc, temp_type,
+				gcc_jit_context_one (ctx, type_int));
+  gcc_jit_block_end_with_jump (block_liquefy, loc, block_next);
+  gcc_jit_block_end_with_void_return (block_done, loc);
+  return func;
+}
+
+static gcc_jit_function *
 gen_func_pour (gcc_jit_context *ctx, gcc_jit_location *loc)
 {
   gcc_jit_param *param_bowl =
@@ -546,6 +591,7 @@ gen_prog_start (gcc_jit_context *ctx)
   func_pop_dish = gen_func_pop_dish (ctx, NULL);
   func_read_int = gen_func_read_int (ctx, NULL);
   func_add_dry = gen_func_add_dry (ctx, NULL);
+  func_liquefy = gen_func_liquefy (ctx, NULL);
   func_pour = gen_func_pour (ctx, NULL);
   func_print_dish = gen_func_print_dish (ctx, NULL);
 }
@@ -709,6 +755,17 @@ add_inst_liquefy_ing (void)
 }
 
 static void
+add_inst_liquefy_bowl (gcc_jit_context *ctx, gcc_jit_block *block)
+{
+  gcc_jit_rvalue *bowl_id =
+    gcc_jit_context_new_rvalue_from_int (ctx, type_int,
+					 rcp->method->bowl - 1);
+  gcc_jit_block_add_eval (block, NULL,
+			  gcc_jit_context_new_call (ctx, NULL, func_liquefy,
+						    1, &bowl_id));
+}
+
+static void
 add_inst_pour (gcc_jit_context *ctx, gcc_jit_block *block)
 {
   gcc_jit_rvalue *bowl_id =
@@ -772,6 +829,9 @@ gen_func_main (gcc_jit_context *ctx)
 	  break;
 	case INST_LIQUEFY_ING:
 	  add_inst_liquefy_ing ();
+	  break;
+	case INST_LIQUEFY_BOWL:
+	  add_inst_liquefy_bowl (ctx, block_entry);
 	  break;
 	case INST_POUR:
 	  add_inst_pour (ctx, block_entry);
