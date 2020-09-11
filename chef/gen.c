@@ -44,17 +44,23 @@ static struct ingredient_map *ings;
 static gcc_jit_type *type_void;
 static gcc_jit_type *type_void_ptr;
 static gcc_jit_type *type_int;
+static gcc_jit_type *type_unsigned;
 static gcc_jit_type *type_container_ptr;
 static gcc_jit_type *type_size_t;
+static gcc_jit_type *type_size_t_ptr;
 static gcc_jit_type *type_const_char_ptr;
 static gcc_jit_field *field_value;
 static gcc_jit_field *field_type;
 static gcc_jit_field *field_next;
 static gcc_jit_function *func_malloc;
+static gcc_jit_function *func_free;
 static gcc_jit_function *func_scanf;
 static gcc_jit_function *func_getchar;
 static gcc_jit_function *func_putchar;
 static gcc_jit_function *func_printf;
+static gcc_jit_function *func_rand;
+static gcc_jit_function *func_srand;
+static gcc_jit_function *func_time;
 static gcc_jit_function *func_push;
 static gcc_jit_function *func_pop;
 static gcc_jit_function *func_pop_dish;
@@ -264,64 +270,6 @@ gen_func_read_int (gcc_jit_context *ctx, gcc_jit_location *loc)
 }
 
 static gcc_jit_function *
-gen_func_print_dish (gcc_jit_context *ctx, gcc_jit_location *loc)
-{
-  gcc_jit_param *param_dish =
-    gcc_jit_context_new_param (ctx, loc, type_int, "dish");
-  gcc_jit_function *func =
-    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_INTERNAL,
-				  type_void, "print_dish", 1, &param_dish, 0);
-  gcc_jit_lvalue *var_temp =
-    gcc_jit_function_new_local (func, NULL, type_container_ptr, "temp");
-  gcc_jit_block *block_entry = gcc_jit_function_new_block (func, "entry");
-  gcc_jit_block *block_print = gcc_jit_function_new_block (func, "print");
-  gcc_jit_block *block_print_num =
-    gcc_jit_function_new_block (func, "print_num");
-  gcc_jit_block *block_print_char =
-    gcc_jit_function_new_block (func, "print_char");
-  gcc_jit_block *block_done = gcc_jit_function_new_block (func, "done");
-  gcc_jit_rvalue *null = gcc_jit_context_null (ctx, type_container_ptr);
-  gcc_jit_rvalue *done_condition =
-    gcc_jit_context_new_comparison (ctx, NULL, GCC_JIT_COMPARISON_EQ,
-				    gcc_jit_lvalue_as_rvalue (var_temp),
-				    null);
-  gcc_jit_lvalue *var_type =
-    gcc_jit_rvalue_dereference_field (gcc_jit_lvalue_as_rvalue (var_temp),
-				      NULL, field_type);
-  gcc_jit_lvalue *var_value =
-    gcc_jit_rvalue_dereference_field (gcc_jit_lvalue_as_rvalue (var_temp),
-				      NULL, field_value);
-  gcc_jit_rvalue *print_condition =
-    gcc_jit_context_new_comparison (ctx, NULL, GCC_JIT_COMPARISON_EQ,
-				    gcc_jit_lvalue_as_rvalue (var_type),
-				    gcc_jit_context_zero (ctx, type_int));
-  gcc_jit_rvalue *printf_fmt = gcc_jit_context_new_string_literal (ctx, "%d");
-  gcc_jit_rvalue *printf_call_args[2] = {
-    printf_fmt,
-    gcc_jit_lvalue_as_rvalue (var_value)
-  };
-  gcc_jit_rvalue *printf_call =
-    gcc_jit_context_new_call (ctx, NULL, func_printf, 2, printf_call_args);
-  gcc_jit_rvalue *putchar_call_arg = gcc_jit_lvalue_as_rvalue (var_value);
-  gcc_jit_rvalue *putchar_call =
-    gcc_jit_context_new_call (ctx, NULL, func_putchar, 1, &putchar_call_arg);
-  gcc_jit_rvalue *pop_call_arg = gcc_jit_param_as_rvalue (param_dish);
-  gcc_jit_rvalue *pop_call =
-    gcc_jit_context_new_call (ctx, NULL, func_pop_dish, 1, &pop_call_arg);
-  gcc_jit_block_add_assignment (block_entry, NULL, var_temp, pop_call);
-  gcc_jit_block_end_with_conditional (block_entry, NULL, done_condition,
-				      block_done, block_print);
-  gcc_jit_block_end_with_conditional (block_print, NULL, print_condition,
-				      block_print_num, block_print_char);
-  gcc_jit_block_add_eval (block_print_num, NULL, printf_call);
-  gcc_jit_block_end_with_jump (block_print_num, NULL, block_entry);
-  gcc_jit_block_add_eval (block_print_char, NULL, putchar_call);
-  gcc_jit_block_end_with_jump (block_print_char, NULL, block_entry);
-  gcc_jit_block_end_with_void_return (block_done, NULL);
-  return func;
-}
-
-static gcc_jit_function *
 gen_func_add_dry (gcc_jit_context *ctx, gcc_jit_location *loc)
 {
   gcc_jit_param *param_bowl =
@@ -507,6 +455,170 @@ gen_func_stir (gcc_jit_context *ctx, gcc_jit_location *loc)
 }
 
 static gcc_jit_function *
+gen_func_mix (gcc_jit_context *ctx, gcc_jit_location *loc)
+{
+  gcc_jit_param *param_bowl =
+    gcc_jit_context_new_param (ctx, loc, type_int, "bowl");
+  gcc_jit_function *func =
+    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_INTERNAL,
+				  type_void, "mix", 1, &param_bowl, 0);
+  gcc_jit_lvalue *var_arr =
+    gcc_jit_function_new_local (func, loc,
+				gcc_jit_type_get_pointer (type_container_ptr),
+				"arr");
+  gcc_jit_lvalue *var_temp =
+    gcc_jit_function_new_local (func, loc, type_container_ptr, "temp");
+  gcc_jit_lvalue *var_len =
+    gcc_jit_function_new_local (func, loc, type_int, "len");
+  gcc_jit_lvalue *var_index =
+    gcc_jit_function_new_local (func, loc, type_int, "index");
+  gcc_jit_lvalue *var_i =
+    gcc_jit_function_new_local (func, loc, type_int, "i");
+  gcc_jit_block *block_entry = gcc_jit_function_new_block (func, "entry");
+  gcc_jit_block *block_check_len =
+    gcc_jit_function_new_block (func, "check_len");
+  gcc_jit_block *block_copy = gcc_jit_function_new_block (func, "copy");
+  gcc_jit_block *block_next_copy =
+    gcc_jit_function_new_block (func, "next_copy");
+  gcc_jit_block *block_shuffle =
+    gcc_jit_function_new_block (func, "shuffle");
+  gcc_jit_block *block_next_shuffle =
+    gcc_jit_function_new_block (func, "next_shuffle");
+  gcc_jit_block *block_link = gcc_jit_function_new_block (func, "link");
+  gcc_jit_block *block_next_link =
+    gcc_jit_function_new_block (func, "next_link");
+  gcc_jit_block *block_done = gcc_jit_function_new_block (func, "done");
+  gcc_jit_lvalue *temp_next =
+    gcc_jit_rvalue_dereference_field (gcc_jit_lvalue_as_rvalue (var_temp),
+				      loc, field_next);
+  gcc_jit_lvalue *var_bowl =
+    gcc_jit_context_new_array_access (ctx, loc,
+				      gcc_jit_lvalue_as_rvalue (var_bowls),
+				      gcc_jit_param_as_rvalue (param_bowl));
+  gcc_jit_rvalue *null = gcc_jit_context_null (ctx, type_container_ptr);
+  gcc_jit_rvalue *arr_null =
+    gcc_jit_context_null (ctx, gcc_jit_type_get_pointer (type_container_ptr));
+  gcc_jit_rvalue *temp_condition =
+    gcc_jit_context_new_comparison (ctx, loc, GCC_JIT_COMPARISON_EQ,
+				    gcc_jit_lvalue_as_rvalue (var_temp),
+				    null);
+  gcc_jit_rvalue *len_condition =
+    gcc_jit_context_new_comparison (ctx, loc, GCC_JIT_COMPARISON_LT,
+				    gcc_jit_lvalue_as_rvalue (var_i),
+				    gcc_jit_lvalue_as_rvalue (var_len));
+  gcc_jit_rvalue *cast_len =
+    gcc_jit_context_new_cast (ctx, loc, gcc_jit_lvalue_as_rvalue (var_len),
+			      type_size_t);
+  gcc_jit_rvalue *arr_size =
+    gcc_jit_context_new_binary_op (ctx, loc, GCC_JIT_BINARY_OP_MULT,
+				   type_size_t,
+				   gcc_jit_type_sizeof (ctx, loc,
+							type_container_ptr),
+				   cast_len);
+  gcc_jit_rvalue *malloc_call =
+    gcc_jit_context_new_call (ctx, loc, func_malloc, 1, &arr_size);
+  gcc_jit_rvalue *cast_malloc =
+    gcc_jit_context_new_cast (ctx, loc, malloc_call,
+			      gcc_jit_type_get_pointer (type_container_ptr));
+  gcc_jit_rvalue *rvalue_arr = gcc_jit_lvalue_as_rvalue (var_arr);
+  gcc_jit_lvalue *arr_i =
+    gcc_jit_context_new_array_access (ctx, loc, rvalue_arr,
+				      gcc_jit_lvalue_as_rvalue (var_i));
+  gcc_jit_lvalue *arr_index =
+    gcc_jit_context_new_array_access (ctx, loc, rvalue_arr,
+				      gcc_jit_lvalue_as_rvalue (var_index));
+  gcc_jit_rvalue *len_diff =
+    gcc_jit_context_new_binary_op (ctx, loc, GCC_JIT_BINARY_OP_MINUS,
+				   type_int,
+				   gcc_jit_lvalue_as_rvalue (var_len),
+				   gcc_jit_lvalue_as_rvalue (var_i));
+  gcc_jit_rvalue *scaled_rand =
+    gcc_jit_context_new_binary_op (ctx, loc, GCC_JIT_BINARY_OP_MODULO,
+				   type_int,
+				   gcc_jit_context_new_call (ctx, loc,
+							     func_rand,
+							     0, NULL),
+				   len_diff);
+  gcc_jit_rvalue *rand_index =
+    gcc_jit_context_new_binary_op (ctx, loc, GCC_JIT_BINARY_OP_PLUS,
+				   type_int,
+				   gcc_jit_lvalue_as_rvalue (var_i),
+				   scaled_rand);
+  gcc_jit_lvalue *arr_first =
+    gcc_jit_context_new_array_access (ctx, loc,
+				      gcc_jit_lvalue_as_rvalue (var_arr),
+				      gcc_jit_context_zero (ctx, type_int));
+  gcc_jit_block_add_assignment (block_entry, loc, var_len,
+				gcc_jit_context_zero (ctx, type_int));
+  gcc_jit_block_add_assignment (block_entry, loc, var_arr, arr_null);
+  gcc_jit_block_add_assignment (block_entry, loc, var_temp,
+				gcc_jit_lvalue_as_rvalue (var_bowl));
+  gcc_jit_block_end_with_conditional (block_entry, loc, temp_condition,
+				      block_done, block_check_len);
+  gcc_jit_block_add_assignment_op (block_check_len, loc, var_len,
+				   GCC_JIT_BINARY_OP_PLUS,
+				   gcc_jit_context_one (ctx, type_int));
+  gcc_jit_block_add_assignment (block_check_len, loc, var_temp,
+				gcc_jit_lvalue_as_rvalue (temp_next));
+  gcc_jit_block_end_with_conditional (block_check_len, loc, temp_condition,
+				      block_copy, block_check_len);
+  gcc_jit_block_add_assignment (block_copy, loc, var_i,
+				gcc_jit_context_zero (ctx, type_int));
+  gcc_jit_block_add_assignment (block_copy, loc, var_temp,
+				gcc_jit_lvalue_as_rvalue (var_bowl));
+  gcc_jit_block_add_assignment (block_copy, loc, var_arr, cast_malloc);
+  gcc_jit_block_end_with_jump (block_copy, loc, block_next_copy);
+  gcc_jit_block_add_assignment (block_next_copy, loc, arr_i,
+				gcc_jit_lvalue_as_rvalue (var_temp));
+  gcc_jit_block_add_assignment (block_next_copy, loc, var_temp,
+				gcc_jit_lvalue_as_rvalue (temp_next));
+  gcc_jit_block_add_assignment_op (block_next_copy, loc, var_i,
+				   GCC_JIT_BINARY_OP_PLUS,
+				   gcc_jit_context_one (ctx, type_int));
+  gcc_jit_block_end_with_conditional (block_next_copy, loc, len_condition,
+				      block_next_copy, block_shuffle);
+  gcc_jit_block_add_assignment (block_shuffle, loc, var_i,
+				gcc_jit_context_zero (ctx, type_int));
+  gcc_jit_block_end_with_jump (block_shuffle, loc, block_next_shuffle);
+  gcc_jit_block_add_assignment (block_next_shuffle, loc, var_index,
+				rand_index);
+  gcc_jit_block_add_assignment (block_next_shuffle, loc, var_temp,
+				gcc_jit_lvalue_as_rvalue (arr_index));
+  gcc_jit_block_add_assignment (block_next_shuffle, loc, arr_index,
+				gcc_jit_lvalue_as_rvalue (arr_i));
+  gcc_jit_block_add_assignment (block_next_shuffle, loc, arr_i,
+				gcc_jit_lvalue_as_rvalue (var_temp));
+  gcc_jit_block_add_assignment_op (block_next_shuffle, loc, var_i,
+				   GCC_JIT_BINARY_OP_PLUS,
+				   gcc_jit_context_one (ctx, type_int));
+  gcc_jit_block_end_with_conditional (block_next_shuffle, loc, len_condition,
+				      block_next_shuffle, block_link);
+  gcc_jit_block_add_assignment (block_link, loc, var_bowl,
+				gcc_jit_lvalue_as_rvalue (arr_first));
+  gcc_jit_block_add_assignment (block_link, loc, var_temp,
+				gcc_jit_lvalue_as_rvalue (var_bowl));
+  gcc_jit_block_add_assignment (block_link, loc, var_i,
+				gcc_jit_context_one (ctx, type_int));
+  gcc_jit_block_end_with_conditional (block_link, loc, len_condition,
+				      block_next_link, block_done);
+  gcc_jit_block_add_assignment (block_next_link, loc, temp_next,
+				gcc_jit_lvalue_as_rvalue (arr_i));
+  gcc_jit_block_add_assignment (block_next_link, loc, var_temp,
+				gcc_jit_lvalue_as_rvalue (temp_next));
+  gcc_jit_block_add_assignment_op (block_next_link, loc, var_i,
+				   GCC_JIT_BINARY_OP_PLUS,
+				   gcc_jit_context_one (ctx, type_int));
+  gcc_jit_block_end_with_conditional (block_next_link, loc, len_condition,
+				      block_next_link, block_done);
+  gcc_jit_block_add_assignment (block_done, loc, temp_next, null);
+  gcc_jit_block_add_eval (block_done, loc,
+			  gcc_jit_context_new_call (ctx, loc, func_free,
+						    1, &rvalue_arr));
+  gcc_jit_block_end_with_void_return (block_done, loc);
+  return func;
+}
+
+static gcc_jit_function *
 gen_func_pour (gcc_jit_context *ctx, gcc_jit_location *loc)
 {
   gcc_jit_param *param_bowl =
@@ -606,6 +718,64 @@ gen_func_pour (gcc_jit_context *ctx, gcc_jit_location *loc)
   return func;
 }
 
+static gcc_jit_function *
+gen_func_print_dish (gcc_jit_context *ctx, gcc_jit_location *loc)
+{
+  gcc_jit_param *param_dish =
+    gcc_jit_context_new_param (ctx, loc, type_int, "dish");
+  gcc_jit_function *func =
+    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_INTERNAL,
+				  type_void, "print_dish", 1, &param_dish, 0);
+  gcc_jit_lvalue *var_temp =
+    gcc_jit_function_new_local (func, NULL, type_container_ptr, "temp");
+  gcc_jit_block *block_entry = gcc_jit_function_new_block (func, "entry");
+  gcc_jit_block *block_print = gcc_jit_function_new_block (func, "print");
+  gcc_jit_block *block_print_num =
+    gcc_jit_function_new_block (func, "print_num");
+  gcc_jit_block *block_print_char =
+    gcc_jit_function_new_block (func, "print_char");
+  gcc_jit_block *block_done = gcc_jit_function_new_block (func, "done");
+  gcc_jit_rvalue *null = gcc_jit_context_null (ctx, type_container_ptr);
+  gcc_jit_rvalue *done_condition =
+    gcc_jit_context_new_comparison (ctx, NULL, GCC_JIT_COMPARISON_EQ,
+				    gcc_jit_lvalue_as_rvalue (var_temp),
+				    null);
+  gcc_jit_lvalue *var_type =
+    gcc_jit_rvalue_dereference_field (gcc_jit_lvalue_as_rvalue (var_temp),
+				      NULL, field_type);
+  gcc_jit_lvalue *var_value =
+    gcc_jit_rvalue_dereference_field (gcc_jit_lvalue_as_rvalue (var_temp),
+				      NULL, field_value);
+  gcc_jit_rvalue *print_condition =
+    gcc_jit_context_new_comparison (ctx, NULL, GCC_JIT_COMPARISON_EQ,
+				    gcc_jit_lvalue_as_rvalue (var_type),
+				    gcc_jit_context_zero (ctx, type_int));
+  gcc_jit_rvalue *printf_fmt = gcc_jit_context_new_string_literal (ctx, "%d");
+  gcc_jit_rvalue *printf_call_args[2] = {
+    printf_fmt,
+    gcc_jit_lvalue_as_rvalue (var_value)
+  };
+  gcc_jit_rvalue *printf_call =
+    gcc_jit_context_new_call (ctx, NULL, func_printf, 2, printf_call_args);
+  gcc_jit_rvalue *putchar_call_arg = gcc_jit_lvalue_as_rvalue (var_value);
+  gcc_jit_rvalue *putchar_call =
+    gcc_jit_context_new_call (ctx, NULL, func_putchar, 1, &putchar_call_arg);
+  gcc_jit_rvalue *pop_call_arg = gcc_jit_param_as_rvalue (param_dish);
+  gcc_jit_rvalue *pop_call =
+    gcc_jit_context_new_call (ctx, NULL, func_pop_dish, 1, &pop_call_arg);
+  gcc_jit_block_add_assignment (block_entry, NULL, var_temp, pop_call);
+  gcc_jit_block_end_with_conditional (block_entry, NULL, done_condition,
+				      block_done, block_print);
+  gcc_jit_block_end_with_conditional (block_print, NULL, print_condition,
+				      block_print_num, block_print_char);
+  gcc_jit_block_add_eval (block_print_num, NULL, printf_call);
+  gcc_jit_block_end_with_jump (block_print_num, NULL, block_entry);
+  gcc_jit_block_add_eval (block_print_char, NULL, putchar_call);
+  gcc_jit_block_end_with_jump (block_print_char, NULL, block_entry);
+  gcc_jit_block_end_with_void_return (block_done, NULL);
+  return func;
+}
+
 static void
 gen_prog_start (gcc_jit_context *ctx)
 {
@@ -622,10 +792,19 @@ gen_prog_start (gcc_jit_context *ctx)
     gcc_jit_context_new_param (ctx, NULL, type_const_char_ptr, "fmt");
   gcc_jit_param *param_c =
     gcc_jit_context_new_param (ctx, NULL, type_int, "c");
-  
+  gcc_jit_param *param_ptr =
+    gcc_jit_context_new_param (ctx, NULL, type_void_ptr, "ptr");
+  gcc_jit_param *param_seed =
+    gcc_jit_context_new_param (ctx, NULL, type_unsigned, "seed");
+  gcc_jit_param *param_second =
+    gcc_jit_context_new_param (ctx, NULL, type_size_t_ptr, "second");
+
   func_malloc =
     gcc_jit_context_new_function (ctx, NULL, GCC_JIT_FUNCTION_IMPORTED,
 				  type_void_ptr, "malloc", 1, &param_size, 0);
+  func_free =
+    gcc_jit_context_new_function (ctx, NULL, GCC_JIT_FUNCTION_IMPORTED,
+				  type_void, "free", 1, &param_ptr, 0);
   func_scanf =
     gcc_jit_context_new_function (ctx, NULL, GCC_JIT_FUNCTION_IMPORTED,
 				  type_int, "scanf", 1, &param_fmt_scanf, 1);
@@ -639,6 +818,15 @@ gen_prog_start (gcc_jit_context *ctx)
     gcc_jit_context_new_function (ctx, NULL, GCC_JIT_FUNCTION_IMPORTED,
 				  type_int, "printf", 1, &param_fmt_printf,
 				  1);
+  func_rand =
+    gcc_jit_context_new_function (ctx, NULL, GCC_JIT_FUNCTION_IMPORTED,
+				  type_int, "rand", 0, NULL, 0);
+  func_srand =
+    gcc_jit_context_new_function (ctx, NULL, GCC_JIT_FUNCTION_IMPORTED,
+				  type_void, "srand", 1, &param_seed, 0);
+  func_time =
+    gcc_jit_context_new_function (ctx, NULL, GCC_JIT_FUNCTION_IMPORTED,
+				  type_size_t, "time", 1, &param_second, 0);
   
   type_container_ptr = gcc_jit_type_get_pointer (type_container);
   type_container_ptr_arr =
@@ -666,6 +854,7 @@ gen_prog_start (gcc_jit_context *ctx)
   func_add_dry = gen_func_add_dry (ctx, NULL);
   func_liquefy = gen_func_liquefy (ctx, NULL);
   func_stir = gen_func_stir (ctx, NULL);
+  func_mix = gen_func_mix (ctx, NULL);
   func_pour = gen_func_pour (ctx, NULL);
   func_print_dish = gen_func_print_dish (ctx, NULL);
 }
@@ -881,6 +1070,33 @@ add_inst_stir (gcc_jit_context *ctx, gcc_jit_block *block)
 }
 
 static void
+add_inst_mix (gcc_jit_context *ctx, gcc_jit_block *block)
+{
+  gcc_jit_rvalue *bowl_id =
+    gcc_jit_context_new_rvalue_from_int (ctx, type_int,
+					 rcp->method->bowl - 1);
+  gcc_jit_block_add_eval (block, NULL,
+			  gcc_jit_context_new_call (ctx, NULL, func_mix,
+						    1, &bowl_id));
+}
+
+static void
+add_inst_clean (gcc_jit_context *ctx, gcc_jit_block *block)
+{
+  /* TODO Free all nodes before setting to NULL */
+  gcc_jit_rvalue *bowl_id =
+    gcc_jit_context_new_rvalue_from_int (ctx, type_int,
+					 rcp->method->bowl - 1);
+  gcc_jit_lvalue *var_bowl =
+    gcc_jit_context_new_array_access (ctx, NULL,
+				      gcc_jit_lvalue_as_rvalue (var_bowls),
+				      bowl_id);
+  gcc_jit_block_add_assignment (block, NULL, var_bowl,
+				gcc_jit_context_null (ctx,
+						      type_container_ptr));
+}
+
+static void
 add_inst_pour (gcc_jit_context *ctx, gcc_jit_block *block)
 {
   gcc_jit_rvalue *bowl_id =
@@ -903,9 +1119,18 @@ gen_func_main (gcc_jit_context *ctx)
 				  type_int, "main", 0, NULL, 0);
   gcc_jit_block *block_entry =
     gcc_jit_function_new_block (func_main, "entry");
+  gcc_jit_rvalue *null = gcc_jit_context_null (ctx, type_size_t_ptr);
+  gcc_jit_rvalue *time_call =
+    gcc_jit_context_new_cast (ctx, NULL,
+			      gcc_jit_context_new_call (ctx, NULL,
+							func_time, 1, &null),
+			      type_unsigned);
   int i;
-  
   struct ingredient_map *map;
+  
+  gcc_jit_block_add_eval (block_entry, NULL,
+			  gcc_jit_context_new_call (ctx, NULL, func_srand,
+						    1, &time_call));
   for (map = ings; map != NULL; map = map->next)
     {
       gcc_jit_rvalue *var_initval =
@@ -952,6 +1177,12 @@ gen_func_main (gcc_jit_context *ctx)
 	case INST_STIR_BOWL:
 	  add_inst_stir (ctx, block_entry);
 	  break;
+	case INST_MIX:
+	  add_inst_mix (ctx, block_entry);
+	  break;
+	case INST_CLEAN:
+	  add_inst_clean (ctx, block_entry);
+	  break;
 	case INST_POUR:
 	  add_inst_pour (ctx, block_entry);
 	  break;
@@ -982,7 +1213,9 @@ generate_context (void)
   type_void = gcc_jit_context_get_type (ctx, GCC_JIT_TYPE_VOID);
   type_void_ptr = gcc_jit_context_get_type (ctx, GCC_JIT_TYPE_VOID_PTR);
   type_int = gcc_jit_context_get_type (ctx, GCC_JIT_TYPE_INT);
+  type_unsigned = gcc_jit_context_get_type (ctx, GCC_JIT_TYPE_UNSIGNED_INT);
   type_size_t = gcc_jit_context_get_type (ctx, GCC_JIT_TYPE_SIZE_T);
+  type_size_t_ptr = gcc_jit_type_get_pointer (type_size_t);
   type_const_char_ptr =
     gcc_jit_context_get_type (ctx, GCC_JIT_TYPE_CONST_CHAR_PTR);
   gen_prog_start (ctx);
