@@ -49,6 +49,7 @@ static struct
   {"-c", "Compile and assemble only, don't link"},
   {"-g", "Generate debugging information"},
   {"-h, --help", "Show this help text and exit"},
+  {"-o FILE, --output=FILE", "Write compilation output to FILE"},
   {"--version", "Show the version of this program and exit"}
 };
 
@@ -71,6 +72,7 @@ int
 main (int argc, char **argv)
 {
   struct strlist *flags = NULL;
+  char *outfile = NULL;
   int i;
   
   GC_init ();
@@ -80,20 +82,10 @@ main (int argc, char **argv)
   sources = NULL;
   for (i = 1; i < argc; i++)
     {
-      if (*argv[i] == '-' && strlen (argv[i]) > 1)
-	{
-	  if (flags == NULL)
-	    flags = strlist_init (argv[i]);
-	  else
-	    strlist_append (flags, argv[i]);
-	}
+      if (flags == NULL)
+	flags = strlist_init (argv[i]);
       else
-	{
-	  if (sources == NULL)
-	    sources = strlist_init (argv[i]);
-	  else
-	    strlist_append (sources, argv[i]);
-	}
+	strlist_append (flags, argv[i]);
     }
 
   for (; flags != NULL; flags = flags->next)
@@ -123,14 +115,41 @@ main (int argc, char **argv)
 	  usage ();
 	  exit (0);
 	}
+      else if (strcmp (flag, "-o") == 0)
+	{
+	  if (flags->next == NULL)
+	    error ("option %s requires an argument", strbold ("-o"));
+	  else
+	    {
+	      flags = flags->next;
+	      outfile = flags->value;
+	    }
+	}
+      else if (strncmp (flag, "--output=", 9) == 0)
+	{
+	  char *option = flags->value + 9;
+	  if (*option == '\0')
+	    error ("option %s requires an argument", strbold ("--output"));
+	  else
+	    outfile = option;
+	}
+      else if (strcmp (flag, "--output") == 0)
+	error ("option %s requires an argument", strbold ("--output"));
       else if (strcmp (flag, "--version") == 0)
 	{
 	  version ();
 	  exit (0);
 	}
-      else
+      else if (*flag == '-')
 	warning ("ignoring unrecognized command-line option %s",
 		 strbold (flag));
+      else
+	{
+	  if (sources == NULL)
+	    sources = strlist_init (flag);
+	  else
+	    strlist_append (sources, flag);
+	}
     }
   if (awaiting_exit)
     exit (1);
@@ -140,11 +159,13 @@ main (int argc, char **argv)
       error ("no input files");
       exit (1);
     }
+  if (outfile == NULL)
+    outfile = "a.out";
 
   yywrap ();
   yyparse ();
   if (awaiting_exit)
     exit (1);
-  compile ("a.out");
+  compile (outfile);
   return 0;
 }
