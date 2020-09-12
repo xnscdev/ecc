@@ -21,6 +21,7 @@
 #endif
 
 #include <libecc/errors.h>
+#include <libecc/strutils.h>
 #include <libecc/xalloca.h>
 #include <libgccjit.h>
 #include <stdio.h>
@@ -40,6 +41,7 @@ struct ingredient_map
 };
 
 static struct ingredient_map *ings;
+static struct strlist *verbs;
 
 static gcc_jit_type *type_void;
 static gcc_jit_type *type_void_ptr;
@@ -74,6 +76,8 @@ static gcc_jit_function *func_print_dish;
 static gcc_jit_lvalue *var_bowls;
 static gcc_jit_lvalue *var_dishes;
 
+static void add_instruction (gcc_jit_context *ctx, gcc_jit_block *block);
+
 static gcc_jit_rvalue *
 gcc_jit_type_sizeof (gcc_jit_context *ctx, gcc_jit_location *loc,
 		     gcc_jit_type *type)
@@ -106,7 +110,7 @@ gen_func_push (gcc_jit_context *ctx, gcc_jit_location *loc)
     gcc_jit_context_new_param (ctx, loc, type_int, "type");
   gcc_jit_param *params[3] = {param_id, param_value, param_type};
   gcc_jit_function *func =
-    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_INTERNAL,
+    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_EXPORTED,
 				  type_void, "push", 3, params, 0);
   gcc_jit_lvalue *container =
     gcc_jit_function_new_local (func, loc, type_container_ptr,
@@ -151,7 +155,7 @@ gen_func_pop (gcc_jit_context *ctx, gcc_jit_location *loc)
   gcc_jit_param *param_id =
     gcc_jit_context_new_param (ctx, loc, type_int, "id");
   gcc_jit_function *func =
-    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_INTERNAL,
+    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_EXPORTED,
 				  type_container_ptr, "pop", 1, &param_id, 0);
   gcc_jit_lvalue *container =
     gcc_jit_function_new_local (func, loc, type_container_ptr,
@@ -194,7 +198,7 @@ gen_func_pop_dish (gcc_jit_context *ctx, gcc_jit_location *loc)
   gcc_jit_param *param_id =
     gcc_jit_context_new_param (ctx, loc, type_int, "id");
   gcc_jit_function *func =
-    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_INTERNAL,
+    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_EXPORTED,
 				  type_container_ptr, "pop_dish", 1,
 				  &param_id, 0);
   gcc_jit_lvalue *container =
@@ -239,7 +243,7 @@ gen_func_read_int (gcc_jit_context *ctx, gcc_jit_location *loc)
     gcc_jit_context_new_param (ctx, loc, gcc_jit_type_get_pointer (type_int),
 			       "dest");
   gcc_jit_function *func =
-    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_INTERNAL,
+    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_EXPORTED,
 				  type_void, "read_int", 1, &param_dest, 0);
   gcc_jit_block *block_entry = gcc_jit_function_new_block (func, "entry");
   gcc_jit_block *block_fail = gcc_jit_function_new_block (func, "fail");
@@ -275,7 +279,7 @@ gen_func_add_dry (gcc_jit_context *ctx, gcc_jit_location *loc)
   gcc_jit_param *param_bowl =
     gcc_jit_context_new_param (ctx, loc, type_int, "bowl");
   gcc_jit_function *func =
-    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_INTERNAL,
+    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_EXPORTED,
 				  type_void, "add_dry", 1, &param_bowl, 0);
   gcc_jit_lvalue *var_temp =
     gcc_jit_function_new_local (func, loc, type_container_ptr, "temp");
@@ -342,7 +346,7 @@ gen_func_liquefy (gcc_jit_context *ctx, gcc_jit_location *loc)
   gcc_jit_param *param_bowl =
     gcc_jit_context_new_param (ctx, loc, type_int, "bowl");
   gcc_jit_function *func =
-    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_INTERNAL,
+    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_EXPORTED,
 				  type_void, "liquefy", 1, &param_bowl, 0);
   gcc_jit_lvalue *var_temp =
     gcc_jit_function_new_local (func, loc, type_container_ptr, "temp");
@@ -390,7 +394,7 @@ gen_func_stir (gcc_jit_context *ctx, gcc_jit_location *loc)
     gcc_jit_context_new_param (ctx, loc, type_int, "depth");
   gcc_jit_param *params[2] = {param_bowl, param_depth};
   gcc_jit_function *func =
-    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_INTERNAL,
+    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_EXPORTED,
 				  type_void, "stir", 2, params, 0);
   gcc_jit_lvalue *var_save =
     gcc_jit_function_new_local (func, loc, type_container_ptr, "save");
@@ -460,7 +464,7 @@ gen_func_mix (gcc_jit_context *ctx, gcc_jit_location *loc)
   gcc_jit_param *param_bowl =
     gcc_jit_context_new_param (ctx, loc, type_int, "bowl");
   gcc_jit_function *func =
-    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_INTERNAL,
+    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_EXPORTED,
 				  type_void, "mix", 1, &param_bowl, 0);
   gcc_jit_lvalue *var_arr =
     gcc_jit_function_new_local (func, loc,
@@ -627,7 +631,7 @@ gen_func_pour (gcc_jit_context *ctx, gcc_jit_location *loc)
     gcc_jit_context_new_param (ctx, loc, type_int, "dish");
   gcc_jit_param *params[2] = {param_bowl, param_dish};
   gcc_jit_function *func =
-    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_INTERNAL,
+    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_EXPORTED,
 				  type_void, "pour", 2, params, 0);
   gcc_jit_lvalue *var_save =
     gcc_jit_function_new_local (func, loc, type_container_ptr, "save");
@@ -724,7 +728,7 @@ gen_func_print_dish (gcc_jit_context *ctx, gcc_jit_location *loc)
   gcc_jit_param *param_dish =
     gcc_jit_context_new_param (ctx, loc, type_int, "dish");
   gcc_jit_function *func =
-    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_INTERNAL,
+    gcc_jit_context_new_function (ctx, loc, GCC_JIT_FUNCTION_EXPORTED,
 				  type_void, "print_dish", 1, &param_dish, 0);
   gcc_jit_lvalue *var_temp =
     gcc_jit_function_new_local (func, NULL, type_container_ptr, "temp");
@@ -1112,6 +1116,154 @@ add_inst_pour (gcc_jit_context *ctx, gcc_jit_block *block)
 }
 
 static void
+add_inst_loop_start (gcc_jit_context *ctx, gcc_jit_block *block)
+{
+  char *func_name = strlower (rcp->method->verb);
+  gcc_jit_function *func;
+  gcc_jit_block *block_entry;
+  gcc_jit_block *block_main;
+  gcc_jit_block *block_done;
+  gcc_jit_rvalue *exit_condition;
+  struct ingredient_map *map;
+  for (map = ings; map != NULL; map = map->next)
+    {
+      if (strcmp (map->ing->name, rcp->method->ing) == 0)
+	{
+	  gcc_jit_rvalue *var = gcc_jit_lvalue_as_rvalue (map->var);
+	  exit_condition =
+	    gcc_jit_context_new_comparison (ctx, NULL, GCC_JIT_COMPARISON_EQ,
+					    var,
+					    gcc_jit_context_zero (ctx,
+								  type_int));
+	  goto build;
+	}
+    }
+  error ("undefined ingredient: %s", rcp->method->ing);
+  return;
+
+ build:
+  if (verbs == NULL)
+    verbs = strlist_init (func_name);
+  else
+    {
+      struct strlist *list;
+      for (list = verbs; list != NULL; list = list->next)
+	{
+	  if (strcmp (list->value, func_name) == 0)
+	    {
+	      error ("reusage of loop identifier: %s", func_name);
+	      return;
+	    }
+	}
+      strlist_append (verbs, func_name);
+    }
+  func = gcc_jit_context_new_function (ctx, NULL, GCC_JIT_FUNCTION_INTERNAL,
+				       type_void, func_name, 0, NULL, 0);
+  block_entry = gcc_jit_function_new_block (func, "entry");
+  block_main = gcc_jit_function_new_block (func, "main");
+  block_done = gcc_jit_function_new_block (func, "done");
+  gcc_jit_block_end_with_conditional (block_entry, NULL, exit_condition,
+				      block_done, block_main);
+  for (rcp->method = rcp->method->next; rcp->method != NULL;
+       rcp->method = rcp->method->next)
+    {
+      if (rcp->method->type == INST_LOOP_END)
+	{
+	  char *end_name = strlower (rcp->method->verb);
+	  if (strcmp (func_name, end_name) != 0)
+	    {
+	      error ("loop end identifier %s does not match start",
+		     strbold (end_name));
+	      return;
+	    }
+	  if (rcp->method->ing != NULL)
+	    {
+	      for (map = ings; map != NULL; map = map->next)
+		{
+		  if (strcmp (map->ing->name, rcp->method->ing) == 0)
+		    {
+		      gcc_jit_block_add_assignment_op
+			(block_main, NULL, map->var, GCC_JIT_BINARY_OP_MINUS,
+			 gcc_jit_context_one (ctx, type_int));
+		      goto ret;
+		    }
+		}
+	      error ("undefined ingredient: %s", rcp->method->ing);
+	    }
+
+	ret:
+	  gcc_jit_block_end_with_jump (block_main, NULL, block_entry);
+	  break;
+	}
+      else
+	add_instruction (ctx, block_main);
+    }
+  if (rcp->method == NULL)
+    {
+      error ("unterminated loop");
+      exit (1);
+    }
+  gcc_jit_block_end_with_void_return (block_done, NULL);
+  gcc_jit_block_add_eval (block, NULL,
+			  gcc_jit_context_new_call (ctx, NULL, func, 0,
+						    NULL));
+}
+
+static void
+add_instruction (gcc_jit_context *ctx, gcc_jit_block *block)
+{
+  switch (rcp->method->type)
+    {
+    case INST_TAKE:
+      add_inst_take (ctx, block);
+      break;
+    case INST_PUT:
+      add_inst_put (ctx, block);
+      break;
+    case INST_FOLD:
+      add_inst_fold (ctx, block);
+      break;
+    case INST_ADD:
+      add_inst_arith (ctx, block, GCC_JIT_BINARY_OP_PLUS);
+      break;
+    case INST_REMOVE:
+      add_inst_arith (ctx, block, GCC_JIT_BINARY_OP_MINUS);
+      break;
+    case INST_COMBINE:
+      add_inst_arith (ctx, block, GCC_JIT_BINARY_OP_MULT);
+      break;
+    case INST_DIVIDE:
+      add_inst_arith (ctx, block, GCC_JIT_BINARY_OP_DIVIDE);
+      break;
+    case INST_ADD_DRY:
+      add_inst_add_dry (ctx, block);
+      break;
+    case INST_LIQUEFY_ING:
+      add_inst_liquefy_ing ();
+      break;
+    case INST_LIQUEFY_BOWL:
+      add_inst_liquefy_bowl (ctx, block);
+      break;
+    case INST_STIR_ING:
+    case INST_STIR_BOWL:
+      add_inst_stir (ctx, block);
+      break;
+    case INST_MIX:
+      add_inst_mix (ctx, block);
+      break;
+    case INST_CLEAN:
+      add_inst_clean (ctx, block);
+      break;
+    case INST_POUR:
+      add_inst_pour (ctx, block);
+      break;
+    case INST_LOOP_START:
+      add_inst_loop_start (ctx, block);
+      break;
+    }
+}
+
+static void
 gen_func_main (gcc_jit_context *ctx)
 {
   gcc_jit_function *func_main =
@@ -1141,52 +1293,12 @@ gen_func_main (gcc_jit_context *ctx)
 
   for (; rcp->method != NULL; rcp->method = rcp->method->next)
     {
-      switch (rcp->method->type)
-	{
-	case INST_TAKE:
-	  add_inst_take (ctx, block_entry);
-	  break;
-	case INST_PUT:
-	  add_inst_put (ctx, block_entry);
-	  break;
-	case INST_FOLD:
-	  add_inst_fold (ctx, block_entry);
-	  break;
-	case INST_ADD:
-	  add_inst_arith (ctx, block_entry, GCC_JIT_BINARY_OP_PLUS);
-	  break;
-	case INST_REMOVE:
-	  add_inst_arith (ctx, block_entry, GCC_JIT_BINARY_OP_MINUS);
-	  break;
-	case INST_COMBINE:
-	  add_inst_arith (ctx, block_entry, GCC_JIT_BINARY_OP_MULT);
-	  break;
-	case INST_DIVIDE:
-	  add_inst_arith (ctx, block_entry, GCC_JIT_BINARY_OP_DIVIDE);
-	  break;
-	case INST_ADD_DRY:
-	  add_inst_add_dry (ctx, block_entry);
-	  break;
-	case INST_LIQUEFY_ING:
-	  add_inst_liquefy_ing ();
-	  break;
-	case INST_LIQUEFY_BOWL:
-	  add_inst_liquefy_bowl (ctx, block_entry);
-	  break;
-	case INST_STIR_ING:
-	case INST_STIR_BOWL:
-	  add_inst_stir (ctx, block_entry);
-	  break;
-	case INST_MIX:
-	  add_inst_mix (ctx, block_entry);
-	  break;
-	case INST_CLEAN:
-	  add_inst_clean (ctx, block_entry);
-	  break;
-	case INST_POUR:
-	  add_inst_pour (ctx, block_entry);
-	  break;
-	}
+      if (rcp->method->type == INST_LOOP_END)
+	error ("unmatched loop end instruction");
+      else if (rcp->method->type == INST_LOOP_BREAK)
+	error ("set instruction not in loop");
+      else
+	add_instruction (ctx, block_entry);
     }
 
   for (i = 0; i < rcp->serves; i++)
@@ -1237,7 +1349,7 @@ generate_context (void)
 	}
       map->ing = temp;
       map->var = gcc_jit_context_new_global (ctx, NULL,
-					     GCC_JIT_GLOBAL_INTERNAL,
+					     GCC_JIT_GLOBAL_EXPORTED,
 					     type_int, temp->name);
     }
   gen_func_main (ctx);
