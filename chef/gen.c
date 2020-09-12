@@ -1125,6 +1125,8 @@ add_inst_loop_start (gcc_jit_context *ctx, gcc_jit_block *block)
   gcc_jit_block *block_done;
   gcc_jit_rvalue *exit_condition;
   struct ingredient_map *map;
+  int did_break = 0;
+  
   for (map = ings; map != NULL; map = map->next)
     {
       if (strcmp (map->ing->name, rcp->method->ing) == 0)
@@ -1182,6 +1184,8 @@ add_inst_loop_start (gcc_jit_context *ctx, gcc_jit_block *block)
 		{
 		  if (strcmp (map->ing->name, rcp->method->ing) == 0)
 		    {
+		      if (did_break)
+			goto ret;
 		      gcc_jit_block_add_assignment_op
 			(block_main, NULL, map->var, GCC_JIT_BINARY_OP_MINUS,
 			 gcc_jit_context_one (ctx, type_int));
@@ -1192,10 +1196,16 @@ add_inst_loop_start (gcc_jit_context *ctx, gcc_jit_block *block)
 	    }
 
 	ret:
-	  gcc_jit_block_end_with_jump (block_main, NULL, block_entry);
+	  if (!did_break)
+	    gcc_jit_block_end_with_jump (block_main, NULL, block_entry);
 	  break;
 	}
-      else
+      else if (rcp->method->type == INST_LOOP_BREAK)
+	{
+	  gcc_jit_block_end_with_void_return (block_main, NULL);
+	  did_break = 1;
+	}
+      else if (!did_break)
 	add_instruction (ctx, block_main);
     }
   if (rcp->method == NULL)
