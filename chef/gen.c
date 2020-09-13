@@ -63,6 +63,7 @@ static gcc_jit_function *func_printf;
 static gcc_jit_function *func_rand;
 static gcc_jit_function *func_srand;
 static gcc_jit_function *func_time;
+static gcc_jit_function *func_exit;
 static gcc_jit_function *func_push;
 static gcc_jit_function *func_pop;
 static gcc_jit_function *func_pop_dish;
@@ -802,6 +803,8 @@ gen_prog_start (gcc_jit_context *ctx)
     gcc_jit_context_new_param (ctx, NULL, type_unsigned, "seed");
   gcc_jit_param *param_second =
     gcc_jit_context_new_param (ctx, NULL, type_size_t_ptr, "second");
+  gcc_jit_param *param_code =
+    gcc_jit_context_new_param (ctx, NULL, type_int, "code");
 
   func_malloc =
     gcc_jit_context_new_function (ctx, NULL, GCC_JIT_FUNCTION_IMPORTED,
@@ -831,6 +834,9 @@ gen_prog_start (gcc_jit_context *ctx)
   func_time =
     gcc_jit_context_new_function (ctx, NULL, GCC_JIT_FUNCTION_IMPORTED,
 				  type_size_t, "time", 1, &param_second, 0);
+  func_exit =
+    gcc_jit_context_new_function (ctx, NULL, GCC_JIT_FUNCTION_IMPORTED,
+				  type_void, "exit", 1, &param_code, 0);
   
   type_container_ptr = gcc_jit_type_get_pointer (type_container);
   type_container_ptr_arr =
@@ -1220,6 +1226,24 @@ add_inst_loop_start (gcc_jit_context *ctx, gcc_jit_block *block)
 }
 
 static void
+add_inst_refrigerate (gcc_jit_context *ctx, gcc_jit_block *block)
+{
+  gcc_jit_rvalue *status = gcc_jit_context_zero (ctx, type_int);
+  int i;
+  for (i = 0; i < rcp->method->time; i++)
+    {
+      gcc_jit_rvalue *var_dish =
+	gcc_jit_context_new_rvalue_from_int (ctx, type_int, i);
+      gcc_jit_rvalue *print_dish_call =
+	gcc_jit_context_new_call (ctx, NULL, func_print_dish, 1, &var_dish);
+      gcc_jit_block_add_eval (block, NULL, print_dish_call);
+    }
+  gcc_jit_block_add_eval (block, NULL,
+			  gcc_jit_context_new_call (ctx, NULL, func_exit,
+						    1, &status));
+}
+
+static void
 add_instruction (gcc_jit_context *ctx, gcc_jit_block *block)
 {
   switch (rcp->method->type)
@@ -1269,6 +1293,9 @@ add_instruction (gcc_jit_context *ctx, gcc_jit_block *block)
       break;
     case INST_LOOP_START:
       add_inst_loop_start (ctx, block);
+      break;
+    case INST_REFRIGERATE:
+      add_inst_refrigerate (ctx, block);
       break;
     }
 }
