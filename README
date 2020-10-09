@@ -1,0 +1,13 @@
+This package contains a set of compilers for esoteric programming languages.
+Currently, this compiler suite supports the Chef and Brainfuck languages,
+using the libgccjit backend for compilation.
+
+To build this package, run the following:
+
+  ./configure
+  make
+
+To install the package, run `make install'.
+
+This package is licensed under the GNU General Public License version 3.0
+or later. See the file COPYING for more details.
